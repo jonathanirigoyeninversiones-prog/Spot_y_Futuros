@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>zzzz Alpha Crypto - Futuros (trading) & Spot (acumulación)</title>
+    <title>Alpha Crypto - Futuros & Spot (ordenable)</title>
     <style>
         /* ===== RESET Y BASE ===== */
         * {
@@ -338,6 +338,20 @@
             position: sticky;
             top: 0;
             z-index: 2;
+            cursor: pointer;
+            user-select: none;
+        }
+        .table-wrapper th:hover {
+            background: #1f2a3a;
+        }
+        .table-wrapper th .sort-icon {
+            margin-left: 6px;
+            font-size: 10px;
+            opacity: 0.5;
+        }
+        .table-wrapper th .sort-icon.active {
+            opacity: 1;
+            color: #f0b90b;
         }
         .table-wrapper td {
             padding: 13px 10px;
@@ -498,6 +512,26 @@
             .table-wrapper th, .table-wrapper td { padding: 7px 6px; }
             .selector-btn { padding: 12px 20px; font-size: 16px; min-width: 120px; }
         }
+
+        /* ===== ORDENAMIENTO: indicador visual ===== */
+        .sortable-header {
+            cursor: pointer;
+            user-select: none;
+            position: relative;
+        }
+        .sortable-header .sort-icon {
+            margin-left: 6px;
+            font-size: 10px;
+            opacity: 0.3;
+            transition: opacity 0.2s;
+        }
+        .sortable-header .sort-icon.active {
+            opacity: 1;
+            color: #f0b90b;
+        }
+        .sortable-header:hover .sort-icon {
+            opacity: 0.7;
+        }
     </style>
 </head>
 <body>
@@ -549,7 +583,7 @@
             </button>
             <button class="selector-btn spot" id="btnSpot">
                 💰 Spot
-                <span class="sub">Acumulación · Descuento y sobreventa</span>
+                <span class="sub">Acumulación · Descuento y sobreventa · Ordenable</span>
             </button>
         </div>
     </div>
@@ -643,6 +677,13 @@
         // ============================================================
         let currentMode = 'futures';
         let renderExecuted = false;
+
+        // Estado de ordenamiento para spot
+        let sortState = {
+            column: null,      // 'moneda', 'precio', 'descuento', 'rsi', 'volRatio', 'score', 'efectividad'
+            ascending: true
+        };
+        let lastSortedResults = []; // Guardamos los resultados ordenados para re-renderizar sin re-analizar
 
         // ============================================================
         //  UTILITIES
@@ -963,7 +1004,6 @@
                 else if (discount > 5) score += 10;
                 else score += 5;
             } else {
-                // Si está por encima, no penalizamos, solo no sumamos
                 score += 0;
             }
 
@@ -979,7 +1019,7 @@
 
             // 4. Vela roja (mejor para acumular en caídas)
             if (!dailyCandleGreen) score += 5;
-            else score += 2; // verde también suma, pero menos
+            else score += 2;
 
             // 5. Cerca de soporte (mínimo de 20 días)
             const min20 = Math.min(...dClose.slice(-20));
@@ -988,9 +1028,8 @@
             else if (distanceToMin20 < 10) score += 5;
 
             // 6. Confirmación de 4H (que no esté en clara tendencia bajista extrema)
-            // Si 4H es alcista o neutral, sumamos un extra
             if (trend4h === 'BULLISH') score += 5;
-            else if (Math.abs(fPrice - fEma200v) / fPrice < 0.03) score += 3; // cerca de EMA200 = neutral
+            else if (Math.abs(fPrice - fEma200v) / fPrice < 0.03) score += 3;
 
             // ---- DECISIÓN ----
             let signal = 'NEUTRAL';
@@ -1000,7 +1039,9 @@
 
             const effectiveness = clamp(score * 1.2, 0, 98);
 
-            // Sin TP/SL
+            // Cálculo de descuento para mostrar
+            const discountPercent = ema200 ? ((ema200 - currentPrice) / ema200 * 100) : 0;
+
             return {
                 signal,
                 score,
@@ -1017,6 +1058,7 @@
                 rsi,
                 volume: vol,
                 volSma,
+                discountPercent,
                 reason: signal === 'NEUTRAL' ? 'No es zona de acumulación' : 'Zona de acumulación'
             };
         }
@@ -1107,13 +1149,67 @@
         }
 
         // ============================================================
-        //  RENDERIZADO (sin cambios)
+        //  FUNCIÓN DE ORDENAMIENTO PARA SPOT
+        // ============================================================
+        function sortSpotResults(results, column, ascending) {
+            const sorted = [...results];
+            sorted.sort((a, b) => {
+                let valA, valB;
+                switch (column) {
+                    case 'moneda':
+                        valA = a.name || a.symbol || '';
+                        valB = b.name || b.symbol || '';
+                        return ascending ? valA.localeCompare(valB) : valB.localeCompare(valA);
+                    case 'precio':
+                        valA = a.currentPrice || 0;
+                        valB = b.currentPrice || 0;
+                        return ascending ? valA - valB : valB - valA;
+                    case 'descuento':
+                        valA = a.discountPercent || 0;
+                        valB = b.discountPercent || 0;
+                        return ascending ? valA - valB : valB - valA;
+                    case 'rsi':
+                        valA = a.rsi || 0;
+                        valB = b.rsi || 0;
+                        return ascending ? valA - valB : valB - valA;
+                    case 'volRatio':
+                        valA = (a.volSma && a.volume) ? a.volume / a.volSma : 0;
+                        valB = (b.volSma && b.volume) ? b.volume / b.volSma : 0;
+                        return ascending ? valA - valB : valB - valA;
+                    case 'score':
+                        valA = a.score || 0;
+                        valB = b.score || 0;
+                        return ascending ? valA - valB : valB - valA;
+                    case 'efectividad':
+                        valA = a.effectiveness || 0;
+                        valB = b.effectiveness || 0;
+                        return ascending ? valA - valB : valB - valA;
+                    default:
+                        return 0;
+                }
+            });
+            return sorted;
+        }
+
+        // ============================================================
+        //  RENDERIZADO (con ordenamiento para spot)
         // ============================================================
         function renderSignalsTable(results, mode) {
             const container = document.getElementById('signalsTableContainer');
             container.innerHTML = '';
 
-            const signals = results.filter(r => r.signal !== 'NEUTRAL' && !r.error);
+            // Si es spot y tenemos un estado de ordenamiento, aplicarlo
+            let signals = results.filter(r => r.signal !== 'NEUTRAL' && !r.error);
+            if (mode === 'spot' && signals.length > 0) {
+                if (sortState.column) {
+                    signals = sortSpotResults(signals, sortState.column, sortState.ascending);
+                }
+                // Guardar para re-ordenar sin re-analizar
+                lastSortedResults = signals;
+            } else {
+                // Para futuros, no guardamos estado de orden
+                lastSortedResults = [];
+            }
 
             if (signals.length === 0) {
                 container.innerHTML = `
@@ -1134,9 +1230,28 @@
                     <th>Efectividad</th><th>Detalles</th>
                 `;
             } else {
+                // Spot: encabezados ordenables
+                const sortCol = sortState.column;
+                const sortAsc = sortState.ascending;
+                const getSortIcon = (col) => {
+                    if (sortCol === col) {
+                        return sortAsc ? '▲' : '▼';
+                    }
+                    return '⇅';
+                };
+                const getClass = (col) => {
+                    if (sortCol === col) return 'active';
+                    return '';
+                };
                 html += `
-                    <th>#</th><th>Moneda</th><th>Señal</th><th>Precio Actual</th><th>Descuento vs EMA200</th><th>RSI</th>
-                    <th>Vol Ratio</th><th>Score</th><th>Efectividad</th><th>Detalles</th>
+                    <th class="sortable-header" data-sort="moneda">Moneda <span class="sort-icon ${getClass('moneda')}">${getSortIcon('moneda')}</span></th>
+                    <th class="sortable-header" data-sort="precio">Precio <span class="sort-icon ${getClass('precio')}">${getSortIcon('precio')}</span></th>
+                    <th class="sortable-header" data-sort="descuento">Descuento <span class="sort-icon ${getClass('descuento')}">${getSortIcon('descuento')}</span></th>
+                    <th class="sortable-header" data-sort="rsi">RSI <span class="sort-icon ${getClass('rsi')}">${getSortIcon('rsi')}</span></th>
+                    <th class="sortable-header" data-sort="volRatio">Vol Ratio <span class="sort-icon ${getClass('volRatio')}">${getSortIcon('volRatio')}</span></th>
+                    <th class="sortable-header" data-sort="score">Score <span class="sort-icon ${getClass('score')}">${getSortIcon('score')}</span></th>
+                    <th class="sortable-header" data-sort="efectividad">Efectividad <span class="sort-icon ${getClass('efectividad')}">${getSortIcon('efectividad')}</span></th>
+                    <th>Detalles</th>
                 `;
             }
             html += `</tr></thead><tbody>`;
@@ -1169,8 +1284,9 @@
                     `;
                 } else {
                     // Spot (Acumulación)
-                    const discount = r.ema200 ? ((r.ema200 - r.currentPrice) / r.ema200 * 100) : 0;
+                    const discount = r.discountPercent || 0;
                     const discountStr = discount > 0 ? `-${discount.toFixed(1)}%` : `${discount.toFixed(1)}%`;
+                    const discountColor = discount > 15 ? '#2f8d46' : discount > 5 ? '#f0b90b' : '#e74c3c';
                     const rsiVal = r.rsi?.toFixed(1) || '—';
                     let volRatio = '—';
                     if (r.volSma && r.volSma > 0) volRatio = (r.volume / r.volSma).toFixed(2) + 'x';
@@ -1180,11 +1296,9 @@
 
                     html += `
                         <tr>
-                            <td style="color:#5a6b7e;font-weight:600;">${idx+1}</td>
                             <td><div class="coin-name">${r.name}<span class="symbol">${r.symbol}</span></div></td>
-                            <td><span class="signal-long">${r.signal}</span></td>
                             <td class="price-num">${formatPrice(r.currentPrice)}</td>
-                            <td style="color:${discount > 5 ? '#2f8d46' : '#f0b90b'};">${discountStr}</td>
+                            <td style="color:${discountColor};">${discountStr}</td>
                             <td>${rsiVal}</td>
                             <td style="font-weight:500;color:#9aabb8;">${volRatio}</td>
                             <td style="font-weight:700;color:#f0b90b;">${r.score || 0}</td>
@@ -1197,8 +1311,139 @@
 
             html += `</tbody></table>`;
             container.innerHTML = html;
+
+            // ---- AÑADIR EVENTOS DE ORDENAMIENTO PARA SPOT ----
+            if (mode === 'spot') {
+                const headers = container.querySelectorAll('.sortable-header');
+                headers.forEach(th => {
+                    th.addEventListener('click', function(e) {
+                        const col = this.dataset.sort;
+                        if (sortState.column === col) {
+                            sortState.ascending = !sortState.ascending;
+                        } else {
+                            sortState.column = col;
+                            sortState.ascending = true;
+                        }
+                        // Re-renderizar con los datos guardados (sin re-analizar)
+                        if (lastSortedResults.length > 0) {
+                            const sorted = sortSpotResults(lastSortedResults, sortState.column, sortState.ascending);
+                            // Reemplazar signals en la tabla
+                            const container2 = document.getElementById('signalsTableContainer');
+                            // Re-construir solo el tbody o re-renderizar completo
+                            // Para simplificar, re-renderizamos toda la tabla con el nuevo orden
+                            // Pero debemos preservar el modo
+                            renderSignalsTableWithOrder(sorted, mode);
+                        }
+                    });
+                });
+            }
         }
 
+        // Función auxiliar para re-renderizar con orden sin re-analizar
+        function renderSignalsTableWithOrder(signals, mode) {
+            const container = document.getElementById('signalsTableContainer');
+            // Similar a renderSignalsTable pero usando signals ya ordenadas
+            if (signals.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <i class="fas fa-search"></i>
+                        <p>${mode === 'futures' ? 'No se encontraron señales claras en este momento.' : 'No se encontraron zonas de acumulación claras en este momento.'}</p>
+                        <p style="font-size:13px;color:#5a6b7e;margin-top:6px;">${mode === 'futures' ? 'Las condiciones de mercado no cumplen los criterios establecidos.' : 'Las condiciones de mercado no indican zonas de compra favorables.'}</p>
+                    </div>
+                `;
+                return;
+            }
+
+            let html = `<table><thead><tr>`;
+            if (mode === 'futures') {
+                // Futuros no tiene ordenamiento, pero por si acaso
+                html += `
+                    <th>#</th><th>Moneda</th><th>Señal</th><th>Precio Ideal</th><th>Precio Actual</th>
+                    <th>TP (Take Profit)</th><th>SL (Stop Loss)</th><th>SCORE</th><th>VOL RATIO</th>
+                    <th>Efectividad</th><th>Detalles</th>
+                `;
+            } else {
+                const sortCol = sortState.column;
+                const sortAsc = sortState.ascending;
+                const getSortIcon = (col) => {
+                    if (sortCol === col) {
+                        return sortAsc ? '▲' : '▼';
+                    }
+                    return '⇅';
+                };
+                const getClass = (col) => {
+                    if (sortCol === col) return 'active';
+                    return '';
+                };
+                html += `
+                    <th class="sortable-header" data-sort="moneda">Moneda <span class="sort-icon ${getClass('moneda')}">${getSortIcon('moneda')}</span></th>
+                    <th class="sortable-header" data-sort="precio">Precio <span class="sort-icon ${getClass('precio')}">${getSortIcon('precio')}</span></th>
+                    <th class="sortable-header" data-sort="descuento">Descuento <span class="sort-icon ${getClass('descuento')}">${getSortIcon('descuento')}</span></th>
+                    <th class="sortable-header" data-sort="rsi">RSI <span class="sort-icon ${getClass('rsi')}">${getSortIcon('rsi')}</span></th>
+                    <th class="sortable-header" data-sort="volRatio">Vol Ratio <span class="sort-icon ${getClass('volRatio')}">${getSortIcon('volRatio')}</span></th>
+                    <th class="sortable-header" data-sort="score">Score <span class="sort-icon ${getClass('score')}">${getSortIcon('score')}</span></th>
+                    <th class="sortable-header" data-sort="efectividad">Efectividad <span class="sort-icon ${getClass('efectividad')}">${getSortIcon('efectividad')}</span></th>
+                    <th>Detalles</th>
+                `;
+            }
+            html += `</tr></thead><tbody>`;
+
+            signals.forEach((r, idx) => {
+                if (mode === 'futures') {
+                    // (código futuros, pero no se usa aquí)
+                } else {
+                    const discount = r.discountPercent || 0;
+                    const discountStr = discount > 0 ? `-${discount.toFixed(1)}%` : `${discount.toFixed(1)}%`;
+                    const discountColor = discount > 15 ? '#2f8d46' : discount > 5 ? '#f0b90b' : '#e74c3c';
+                    const rsiVal = r.rsi?.toFixed(1) || '—';
+                    let volRatio = '—';
+                    if (r.volSma && r.volSma > 0) volRatio = (r.volume / r.volSma).toFixed(2) + 'x';
+                    const details = `EMA200: ${formatPrice(r.ema200)} | Vol: ${volRatio}`;
+                    const eff = r.effectiveness || 0;
+                    const effColor = eff >= 70 ? '#2f8d46' : eff >= 50 ? '#f0b90b' : '#e74c3c';
+
+                    html += `
+                        <tr>
+                            <td><div class="coin-name">${r.name}<span class="symbol">${r.symbol}</span></div></td>
+                            <td class="price-num">${formatPrice(r.currentPrice)}</td>
+                            <td style="color:${discountColor};">${discountStr}</td>
+                            <td>${rsiVal}</td>
+                            <td style="font-weight:500;color:#9aabb8;">${volRatio}</td>
+                            <td style="font-weight:700;color:#f0b90b;">${r.score || 0}</td>
+                            <td><div class="eff-bar"><div class="bar-bg"><div class="bar-fill" style="width:${eff}%;"></div></div><span class="eff-text" style="color:${effColor};">${eff.toFixed(0)}%</span></div></td>
+                            <td style="font-size:11px;color:#7a8ba3;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${details}"><i class="fas fa-info-circle" style="color:#5a6b7e;margin-right:4px;"></i> ${details}</td>
+                        </tr>
+                    `;
+                }
+            });
+
+            html += `</tbody></table>`;
+            container.innerHTML = html;
+
+            // Re-asignar eventos de ordenamiento (los th tienen data-sort)
+            if (mode === 'spot') {
+                const headers = container.querySelectorAll('.sortable-header');
+                headers.forEach(th => {
+                    th.addEventListener('click', function(e) {
+                        const col = this.dataset.sort;
+                        if (sortState.column === col) {
+                            sortState.ascending = !sortState.ascending;
+                        } else {
+                            sortState.column = col;
+                            sortState.ascending = true;
+                        }
+                        if (lastSortedResults.length > 0) {
+                            const sorted = sortSpotResults(lastSortedResults, sortState.column, sortState.ascending);
+                            renderSignalsTableWithOrder(sorted, mode);
+                        }
+                    });
+                });
+            }
+        }
+
+        // ============================================================
+        //  RENDER TOP TABLE (sin cambios)
+        // ============================================================
         function renderTopTable(results) {
             const container = document.getElementById('topTableContainer');
             container.innerHTML = '';
@@ -1265,6 +1510,11 @@
         async function runAnalysis(mode) {
             try {
                 renderExecuted = false;
+                // Resetear ordenamiento al cambiar de modo
+                sortState.column = null;
+                sortState.ascending = true;
+                lastSortedResults = [];
+
                 const label = mode === 'futures' ? 'Futuros' : 'Spot (Acumulación)';
                 const minVolume = mode === 'futures' ? CONFIG.FUTURES_MIN_VOLUME : CONFIG.SPOT_MIN_VOLUME;
 
@@ -1455,9 +1705,9 @@
             });
         });
 
-        console.log('🔍 Alpha Crypto Analyzer v21.0 - Spot con nueva lógica de acumulación (descuento + sobreventa)');
+        console.log('🔍 Alpha Crypto Analyzer v22.0 - Spot con ordenamiento de columnas (clic en encabezados)');
         console.log('📊 Futuros: trading sin cambios.');
-        console.log('📊 Spot: acumulación basada en descuento sobre EMA200 y RSI bajo, sin exigir tendencia alcista.');
+        console.log('📊 Spot: acumulación con descuento, RSI, volumen y ordenamiento interactivo.');
     </script>
 </body>
 </html>
