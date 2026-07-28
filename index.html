@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>ccc Alpha Crypto - Futuros & Spot (sin tendencia semanal)</title>
+    <title>Alpha Crypto - Futuros & Spot (sin lista estática)</title>
     <style>
         /* ===== RESET Y BASE (idéntico a versiones anteriores) ===== */
         * {
@@ -628,10 +628,49 @@
         };
 
         // ============================================================
+        //  LISTA ESTÁTICA DE RESPALDO (SOLO SI EL PROXY FALLA)
+        // ============================================================
+        const PERPETUAL_SYMBOLS = [
+            'BTCUSDT', 'ETHUSDT', 'BNBUSDT', 'SOLUSDT', 'XRPUSDT', 'ADAUSDT', 'DOGEUSDT',
+            'DOTUSDT', 'MATICUSDT', 'AVAXUSDT', 'SHIBUSDT', 'UNIUSDT', 'LINKUSDT', 'ATOMUSDT',
+            'ETCUSDT', 'LTCUSDT', 'BCHUSDT', 'NEARUSDT', 'ALGOUSDT', 'VETUSDT', 'ICPUSDT',
+            'FILUSDT', 'AXSUSDT', 'AAVEUSDT', 'EGLDUSDT', 'THETAUSDT', 'XTZUSDT', 'EOSUSDT',
+            'CAKEUSDT', 'KSMUSDT', 'ZECUSDT', 'DASHUSDT', 'COMPUSDT', 'MKRUSDT', 'ZILUSDT',
+            'BATUSDT', 'ENJUSDT', 'CHZUSDT', 'SANDUSDT', 'MANAUSDT', 'GALAUSDT', 'APEUSDT',
+            'FTMUSDT', 'LDOUSDT', 'ARBUSDT', 'OPUSDT', 'SUIUSDT', 'SEIUSDT', 'TIAUSDT',
+            'INJUSDT', 'RNDRUSDT', 'PENDLEUSDT', 'ENAUSDT', 'ETHFIUSDT', 'WIFUSDT', 'JUPUSDT',
+            'BONKUSDT', 'PEPEUSDT', 'FLOKIUSDT', 'MEWUSDT', 'POPCATUSDT', 'GOATUSDT',
+            '1INCHUSDT', 'AAVEUSDT', 'ACAUSDT', 'ACHUSDT', 'AGIXUSDT', 'AIDOGEUSDT', 'ALCXUSDT',
+            'ALPHAUSDT', 'AMBUSDT', 'ANKRUSDT', 'ANTUSDT', 'ANYUSDT', 'API3USDT', 'ARPAUSDT',
+            'ASTRUSDT', 'AUDIOUSDT', 'AUTOUSDT', 'BADGERUSDT', 'BALUSDT', 'BANDUSDT',
+            'BELUSDT', 'BICOUSDT', 'BIGTIMEUSDT', 'BLURUSDT', 'BNTUSDT', 'BONDUSDT', 'BSVUSDT',
+            'BTCSTUSDT', 'BTTUSDT', 'BUSDUSDT', 'CELRUSDT', 'CFXUSDT', 'CHRUSDT', 'CITYUSDT',
+            'CKBUSDT', 'COTIUSDT', 'CRVUSDT', 'CTKUSDT', 'CTSIUSDT', 'CVCUSDT', 'CVXUSDT',
+            'DAIUSDT', 'DARUSDT', 'DEGOUSDT', 'DENTUSDT', 'DGBUSDT', 'DIAUSDT', 'DODOUSDT',
+            'DYDXUSDT', 'ENSUSDT', 'FETUSDT', 'FISUSDT', 'FLOWUSDT', 'FLUXUSDT', 'FORTHUSDT',
+            'FRONTUSDT', 'GALUSDT', 'GASUSDT', 'GLMUSDT', 'GMTUSDT', 'GMXUSDT', 'GRTUSDT',
+            'GSTUSDT', 'GTCUSDT', 'HFTUSDT', 'HNTUSDT', 'HOTUSDT', 'IDUSDT', 'ILVUSDT',
+            'IMXUSDT', 'IOSTUSDT', 'IOTAUSDT', 'JASMYUSDT', 'JOEUSDT', 'JTOUSDT', 'KAVAUSDT',
+            'KDAUSDT', 'KLAYUSDT', 'LITUSDT', 'LPTUSDT', 'LQTYUSDT', 'LRCUSDT', 'LSKUSDT',
+            'LUNAUSDT', 'MAGICUSDT', 'MASKUSDT', 'MAVUSDT', 'MBOXUSDT', 'MDTUSDT', 'MINAUSDT',
+            'MLNUSDT', 'MOVRUSDT', 'MTLUSDT', 'MULTIUSDT', 'NEOUSDT', 'NFPUSDT', 'NKNUSDT',
+            'NMRUSDT', 'OCEANUSDT', 'OGNUSDT', 'OMGUSDT', 'ONEUSDT', 'ONTUSDT', 'ORCAUSDT',
+            'ORDIUSDT', 'OXTUSDT', 'PERPUSDT', 'PHAUSDT', 'PIXELUSDT', 'PLAUSDT', 'POLSUSDT',
+            'PONDUSDT', 'POWRUSDT', 'PYRUSDT', 'QNTUSDT', 'QTUMUSDT', 'RADUSDT', 'RAREUSDT',
+            'RAYUSDT', 'RENUSDT', 'REQUSDT', 'RIFUSDT', 'RLCUSDT', 'ROSEUSDT', 'RUNEUSDT',
+            'RVNUSDT', 'SCUSDT', 'SFPUSDT', 'SKLUSDT', 'SLPUSDT', 'SNXUSDT', 'SPELLUSDT',
+            'SSVUSDT', 'STGUSDT', 'STXUSDT', 'SUSHIUSDT', 'SWEATUSDT', 'SYNUSDT', 'TRBUSDT',
+            'TWTUSDT', 'UMAUSDT', 'UNFIUSDT', 'USDCUSDT', 'USTCUSDT', 'VTHOUSDT', 'WAVESUSDT',
+            'WAXPUSDT', 'WBTCUSDT', 'WLDUSDT', 'XLMUSDT', 'XMRUSDT', 'XTZUSDT', 'YFIUSDT',
+            'ZRXUSDT'
+        ];
+
+        // ============================================================
         //  ESTADO
         // ============================================================
         let currentMode = 'futures';
         let renderExecuted = false;
+        let useStaticSymbols = false; // Si el proxy falla, usamos la lista estática
 
         // ============================================================
         //  UTILITIES
@@ -670,7 +709,7 @@
         }
 
         // ============================================================
-        //  INDICADORES (sin cambios)
+        //  INDICADORES (comunes)
         // ============================================================
         function calcSMA(data, period) {
             const result = [];
@@ -804,12 +843,10 @@
 
             const trend4h = (fPrice > fEma200v) ? 'BULLISH' : 'BEARISH';
 
-            // ---- CONFIRMACIÓN DE TENDENCIA (solo 1D y 4H) ----
             if (trendDaily !== trend4h) {
                 return { signal: 'NEUTRAL', score: 0, reason: 'Tendencia diaria y 4h no coinciden', effectiveness: 0 };
             }
 
-            // ---- EVALUACIÓN DE CONDICIONES ----
             if (mode === 'futures') {
                 let longScore = 0, shortScore = 0;
 
@@ -951,7 +988,7 @@
         }
 
         // ============================================================
-        //  API PARA FUTUROS (con proxy y fallback)
+        //  API PARA FUTUROS (con proxy y fallback a lista estática)
         // ============================================================
         async function fetchFuturesKlines(symbol, interval, limit = CONFIG.KLINES_LIMIT) {
             const rawUrl = `${CONFIG.FUTURES_BASE}/fapi/v1/klines?symbol=${symbol}&interval=${interval}&limit=${limit}`;
@@ -981,17 +1018,15 @@
             const rawUrl = `${CONFIG.FUTURES_BASE}/fapi/v1/exchangeInfo`;
             try {
                 const resp = await fetchWithProxy(rawUrl, false);
+                if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
                 const data = await resp.json();
                 return data.symbols
                     .filter(s => s.contractType === 'PERPETUAL' && s.status === 'TRADING' && s.quoteAsset === 'USDT')
                     .map(s => s.symbol);
             } catch (e) {
-                console.warn('Proxy principal falló, usando fallback para exchangeInfo', e);
-                const respFallback = await fetchWithProxy(rawUrl, true);
-                const data = await respFallback.json();
-                return data.symbols
-                    .filter(s => s.contractType === 'PERPETUAL' && s.status === 'TRADING' && s.quoteAsset === 'USDT')
-                    .map(s => s.symbol);
+                console.warn('Proxy para exchangeInfo falló, usando lista estática', e);
+                useStaticSymbols = true;
+                return PERPETUAL_SYMBOLS;
             }
         }
 
@@ -1023,7 +1058,7 @@
         }
 
         // ============================================================
-        //  CONTADOR DE CIERRE DE VELA 4H (sin cambios)
+        //  CONTADOR DE CIERRE DE VELA 4H
         // ============================================================
         function updateCountdown() {
             const now = Date.now();
@@ -1050,7 +1085,7 @@
         }
 
         // ============================================================
-        //  RENDERIZADO (sin cambios)
+        //  RENDERIZADO
         // ============================================================
         function renderSignalsTable(results, mode) {
             const container = document.getElementById('signalsTableContainer');
@@ -1325,7 +1360,7 @@
                     <div class="empty-state">
                         <i class="fas fa-exclamation-triangle"></i>
                         <p>Error al cargar los datos: ${err.message}</p>
-                        <p style="font-size:13px;color:#5a6b7e;margin-top:8px;">Por favor, recarga la página o intenta más tarde.<br>Si el problema persiste, es posible que el proxy CORS esté bloqueado. Prueba con otro proxy o despliega la web en un servidor HTTPS (ej. GitHub Pages).</p>
+                        <p style="font-size:13px;color:#5a6b7e;margin-top:8px;">Por favor, recarga la página o intenta más tarde.<br>Si el problema persiste, despliega la web en un servidor HTTPS (ej. GitHub Pages).</p>
                     </div>
                 `;
             }
@@ -1380,10 +1415,9 @@
             });
         });
 
-        console.log('🔍 Alpha Crypto Analyzer v18.0 - SIN tendencia semanal');
-        console.log('📊 Solo confirmación 1D y 4H.');
-        console.log('📊 Futuros: filtro ≥50M, TP/SL dinámicos.');
-        console.log('📊 Spot: filtro ≥1M, acumulación (sin TP/SL).');
+        console.log('🔍 Alpha Crypto Analyzer v19.0 - Proxy con fallback a lista estática (solo si falla)');
+        console.log('📊 Futuros: intenta obtener símbolos de fapi via proxy, si falla usa lista estática.');
+        console.log('📊 Spot: todo desde api.binance.com (sin proxy).');
     </script>
 </body>
 </html>
