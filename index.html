@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Alpha Crypto - Futuros & Spot (sin semanal)</title>
+    <title>ccc Alpha Crypto - Futuros & Spot</title>
     <style>
         /* ===== RESET Y BASE ===== */
         * {
@@ -516,9 +516,9 @@
         </div>
     </div>
 
-    <!-- SELECTOR INICIAL -->
+    <!-- SELECTOR INICIAL (CON CONTADOR) -->
     <div id="welcomeSelector">
-        <div class="header" style="width:100%; margin-bottom:30px;">
+        <header class="header" style="width:100%; margin-bottom:30px;">
             <div class="header-left">
                 <i class="fas fa-chart-line logo"></i>
                 <div>
@@ -529,7 +529,17 @@
                     </div>
                 </div>
             </div>
-        </div>
+            <div class="header-right">
+                <div class="badge" id="countdownBadge">
+                    <i class="fas fa-hourglass-half"></i> <span id="countdownDisplay">--:--:--</span>
+                </div>
+                <div class="status">
+                    <span class="status-dot"></span>
+                    <span style="font-size:13px;">Live</span>
+                </div>
+            </div>
+        </header>
+
         <h2>🔍 Elige tu mercado</h2>
         <p>Selecciona el tipo de análisis que deseas realizar</p>
         <div class="selector-buttons">
@@ -544,7 +554,7 @@
         </div>
     </div>
 
-    <!-- CONTENIDO PRINCIPAL -->
+    <!-- CONTENIDO PRINCIPAL (oculto hasta seleccionar) -->
     <div class="container" id="mainContent" style="display:none;">
         <header class="header">
             <div class="header-left">
@@ -561,8 +571,8 @@
                 <div class="badge">
                     <i class="fas fa-database"></i> <span id="coinCount">0</span> <span style="font-size:10px;color:#7a8ba3;" id="volFilterLabel">(≥50M)</span>
                 </div>
-                <div class="badge" id="countdownBadge">
-                    <i class="fas fa-hourglass-half"></i> <span id="countdownDisplay">--:--:--</span>
+                <div class="badge" id="countdownBadge2">
+                    <i class="fas fa-hourglass-half"></i> <span id="countdownDisplay2">--:--:--</span>
                 </div>
                 <div class="status">
                     <span class="status-dot"></span>
@@ -599,7 +609,7 @@
         </footer>
     </div>
 
-    <!-- ===== JAVASCRIPT (SIN TENDENCIA SEMANAL) ===== -->
+    <!-- ===== JAVASCRIPT (SIN TENDENCIA SEMANAL, CON CONTADOR EN SELECTOR) ===== -->
     <script>
         // ============================================================
         //  CONFIGURACIÓN
@@ -786,7 +796,6 @@
 
             const trend4h = (fPrice > fEma200v) ? 'BULLISH' : 'BEARISH';
 
-            // ---- CONFIRMACIÓN DE TENDENCIA (solo 1D y 4H) ----
             if (trendDaily !== trend4h) {
                 return { signal: 'NEUTRAL', score: 0, reason: 'Tendencia diaria y 4h no coinciden', effectiveness: 0 };
             }
@@ -1052,7 +1061,7 @@
         }
 
         // ============================================================
-        //  CONTADOR DE CIERRE DE VELA 4H
+        //  CONTADOR DE CIERRE DE VELA 4H (común)
         // ============================================================
         function updateCountdown() {
             const now = Date.now();
@@ -1069,13 +1078,20 @@
             const diffMs = nextDate.getTime() - now;
             if (diffMs <= 0) {
                 document.getElementById('countdownDisplay').textContent = '00:00:00';
+                if (document.getElementById('countdownDisplay2')) {
+                    document.getElementById('countdownDisplay2').textContent = '00:00:00';
+                }
                 return;
             }
             const totalSec = Math.floor(diffMs / 1000);
             const hrs = String(Math.floor(totalSec / 3600)).padStart(2, '0');
             const mins = String(Math.floor((totalSec % 3600) / 60)).padStart(2, '0');
             const secs = String(totalSec % 60).padStart(2, '0');
-            document.getElementById('countdownDisplay').textContent = `${hrs}:${mins}:${secs}`;
+            const display = `${hrs}:${mins}:${secs}`;
+            document.getElementById('countdownDisplay').textContent = display;
+            if (document.getElementById('countdownDisplay2')) {
+                document.getElementById('countdownDisplay2').textContent = display;
+            }
         }
 
         // ============================================================
@@ -1350,8 +1366,7 @@
                 document.getElementById('topCount').textContent =
                     `${sortedResults.length} monedas`;
 
-                updateCountdown();
-                setInterval(updateCountdown, 1000);
+                // No iniciamos el contador aquí, ya está corriendo desde el inicio
 
                 loadingOverlay.classList.add('hidden');
                 mainContent.style.display = 'block';
@@ -1394,6 +1409,10 @@
         }
 
         document.addEventListener('DOMContentLoaded', () => {
+            // Iniciar el contador de la vela de 4H desde el principio
+            updateCountdown();
+            setInterval(updateCountdown, 1000);
+
             document.getElementById('btnFutures').addEventListener('click', () => selectMode('futures'));
             document.getElementById('btnSpot').addEventListener('click', () => selectMode('spot'));
 
@@ -1422,9 +1441,9 @@
             });
         });
 
-        console.log('🔍 Alpha Crypto Analyzer v20.3 - SIN TENDENCIA SEMANAL (futuros y spot)');
-        console.log('📊 Futuros: fapi.binance.com, filtro ≥50M, solo 1D+4H.');
-        console.log('📊 Spot: api.binance.com, filtro ≥1M, misma lógica sin TP/SL.');
+        console.log('🔍 Alpha Crypto Analyzer v20.4 - Contador en selector inicial');
+        console.log('📊 Futuros: sin semanal, fapi.binance.com, filtro ≥50M.');
+        console.log('📊 Spot: sin semanal, api.binance.com, filtro ≥1M, acumulación sin TP/SL.');
     </script>
 </body>
 </html>
