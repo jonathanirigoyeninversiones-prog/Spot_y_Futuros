@@ -3,9 +3,9 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Alpha Crypto - Futuros & Spot (ordenable)</title>
+    <title>1 Alpha Crypto - Futuros & Spot (con filtros de calidad)</title>
     <style>
-        /* ===== RESET Y BASE ===== */
+        /* ===== RESET Y BASE (sin cambios) ===== */
         * {
             margin: 0;
             padding: 0;
@@ -513,7 +513,7 @@
             .selector-btn { padding: 12px 20px; font-size: 16px; min-width: 120px; }
         }
 
-        /* ===== ORDENAMIENTO: indicador visual ===== */
+        /* ===== ORDENAMIENTO ===== */
         .sortable-header {
             cursor: pointer;
             user-select: none;
@@ -583,7 +583,7 @@
             </button>
             <button class="selector-btn spot" id="btnSpot">
                 💰 Spot
-                <span class="sub">Acumulación · Descuento y sobreventa · Ordenable</span>
+                <span class="sub">Acumulación · Filtros de calidad activos</span>
             </button>
         </div>
     </div>
@@ -657,9 +657,9 @@
             FUTURES_SL_MULTIPLIER_HIGH_VOL: 1.0,
             FUTURES_TP_MULTIPLIER_HIGH_VOL: 2.0,
             FUTURES_ENTRY_ADJUST: 0.995,
-            // Spot (nueva lógica)
+            // Spot (nueva lógica con filtros de calidad)
             SPOT_BASE: 'https://api.binance.com',
-            SPOT_MIN_VOLUME: 1000000,
+            SPOT_MIN_VOLUME: 5000000, // SUBIDO DE 1M A 5M
             // Comunes
             KLINES_LIMIT: 250,
             RSI_PERIOD: 14,
@@ -670,6 +670,9 @@
             MIN_SIGNAL_SCORE: 45,
             REQUEST_DELAY_MS: 60,
             VOLATILITY_FACTOR: 1.5,
+            // Filtros de calidad para spot
+            MIN_VOL_RATIO: 0.5,
+            MIN_PRICE: 0.01,
         };
 
         // ============================================================
@@ -680,10 +683,10 @@
 
         // Estado de ordenamiento para spot
         let sortState = {
-            column: null,      // 'moneda', 'precio', 'descuento', 'rsi', 'volRatio', 'score', 'efectividad'
+            column: null,
             ascending: true
         };
-        let lastSortedResults = []; // Guardamos los resultados ordenados para re-renderizar sin re-analizar
+        let lastSortedResults = [];
 
         // ============================================================
         //  UTILITIES
@@ -938,7 +941,7 @@
         }
 
         // ============================================================
-        //  ANÁLISIS DE SPOT (NUEVA LÓGICA DE ACUMULACIÓN)
+        //  ANÁLISIS DE SPOT (CON FILTROS DE CALIDAD)
         // ============================================================
         function analyzeSpotCoin(symbol, dailyKlines, fourHKlines) {
             const dOpen = dailyKlines.map(c => parseFloat(c[1]));
@@ -993,10 +996,10 @@
 
             const trend4h = (fPrice > fEma200v) ? 'BULLISH' : 'BEARISH';
 
-            // ---- NUEVA LÓGICA DE ACUMULACIÓN (NO DEPENDE DE TENDENCIA ALCISTA) ----
+            // ---- NUEVA LÓGICA DE ACUMULACIÓN CON FILTROS DE CALIDAD ----
             let score = 0;
 
-            // 1. Descuento respecto a EMA200 (cuanto más bajo, mejor)
+            // 1. Descuento respecto a EMA200
             if (currentPrice < ema200) {
                 const discount = ((ema200 - currentPrice) / ema200) * 100;
                 if (discount > 15) score += 20;
@@ -1027,9 +1030,38 @@
             if (distanceToMin20 < 5) score += 10;
             else if (distanceToMin20 < 10) score += 5;
 
-            // 6. Confirmación de 4H (que no esté en clara tendencia bajista extrema)
+            // 6. Confirmación de 4H
             if (trend4h === 'BULLISH') score += 5;
             else if (Math.abs(fPrice - fEma200v) / fPrice < 0.03) score += 3;
+
+            // ---- FILTROS DE CALIDAD (NUEVOS) ----
+            const volRatio = (volSma > 0) ? vol / volSma : 0;
+            const passesVolume = volRatio >= CONFIG.MIN_VOL_RATIO;
+            const passesPrice = currentPrice >= CONFIG.MIN_PRICE;
+            // Nota: el filtro de volumen mínimo ya se aplica en el bucle principal (SPOT_MIN_VOLUME = 5M)
+
+            // Si no pasa los filtros de calidad, forzamos señal NEUTRAL y score 0
+            if (!passesVolume || !passesPrice) {
+                return {
+                    signal: 'NEUTRAL',
+                    score: 0,
+                    effectiveness: 0,
+                    currentPrice,
+                    entryPrice: currentPrice,
+                    tp: null,
+                    sl: null,
+                    trendDaily,
+                    trend4h,
+                    ema200,
+                    ema20,
+                    ema50,
+                    rsi,
+                    volume: vol,
+                    volSma,
+                    discountPercent: (ema200 - currentPrice) / ema200 * 100,
+                    reason: 'No cumple filtros de calidad'
+                };
+            }
 
             // ---- DECISIÓN ----
             let signal = 'NEUTRAL';
@@ -1039,7 +1071,6 @@
 
             const effectiveness = clamp(score * 1.2, 0, 98);
 
-            // Cálculo de descuento para mostrar
             const discountPercent = ema200 ? ((ema200 - currentPrice) / ema200 * 100) : 0;
 
             return {
@@ -1059,6 +1090,7 @@
                 volume: vol,
                 volSma,
                 discountPercent,
+                volRatio,
                 reason: signal === 'NEUTRAL' ? 'No es zona de acumulación' : 'Zona de acumulación'
             };
         }
@@ -1192,7 +1224,7 @@
         }
 
         // ============================================================
-        //  RENDERIZADO (con ordenamiento para spot)
+        //  RENDERIZADO (con ordenamiento para spot y filtros de calidad)
         // ============================================================
         function renderSignalsTable(results, mode) {
             const container = document.getElementById('signalsTableContainer');
@@ -1207,7 +1239,6 @@
                 // Guardar para re-ordenar sin re-analizar
                 lastSortedResults = signals;
             } else {
-                // Para futuros, no guardamos estado de orden
                 lastSortedResults = [];
             }
 
@@ -1215,8 +1246,8 @@
                 container.innerHTML = `
                     <div class="empty-state">
                         <i class="fas fa-search"></i>
-                        <p>${mode === 'futures' ? 'No se encontraron señales claras en este momento.' : 'No se encontraron zonas de acumulación claras en este momento.'}</p>
-                        <p style="font-size:13px;color:#5a6b7e;margin-top:6px;">${mode === 'futures' ? 'Las condiciones de mercado no cumplen los criterios establecidos.' : 'Las condiciones de mercado no indican zonas de compra favorables.'}</p>
+                        <p>${mode === 'futures' ? 'No se encontraron señales claras en este momento.' : 'No se encontraron zonas de acumulación claras con los filtros de calidad activos.'}</p>
+                        <p style="font-size:13px;color:#5a6b7e;margin-top:6px;">${mode === 'futures' ? 'Las condiciones de mercado no cumplen los criterios establecidos.' : 'Asegúrate de que las monedas cumplan: Vol > 5M, Vol ratio > 0.5x, Precio > $0.01.'}</p>
                     </div>
                 `;
                 return;
@@ -1324,14 +1355,8 @@
                             sortState.column = col;
                             sortState.ascending = true;
                         }
-                        // Re-renderizar con los datos guardados (sin re-analizar)
                         if (lastSortedResults.length > 0) {
                             const sorted = sortSpotResults(lastSortedResults, sortState.column, sortState.ascending);
-                            // Reemplazar signals en la tabla
-                            const container2 = document.getElementById('signalsTableContainer');
-                            // Re-construir solo el tbody o re-renderizar completo
-                            // Para simplificar, re-renderizamos toda la tabla con el nuevo orden
-                            // Pero debemos preservar el modo
                             renderSignalsTableWithOrder(sorted, mode);
                         }
                     });
@@ -1339,16 +1364,14 @@
             }
         }
 
-        // Función auxiliar para re-renderizar con orden sin re-analizar
         function renderSignalsTableWithOrder(signals, mode) {
             const container = document.getElementById('signalsTableContainer');
-            // Similar a renderSignalsTable pero usando signals ya ordenadas
             if (signals.length === 0) {
                 container.innerHTML = `
                     <div class="empty-state">
                         <i class="fas fa-search"></i>
-                        <p>${mode === 'futures' ? 'No se encontraron señales claras en este momento.' : 'No se encontraron zonas de acumulación claras en este momento.'}</p>
-                        <p style="font-size:13px;color:#5a6b7e;margin-top:6px;">${mode === 'futures' ? 'Las condiciones de mercado no cumplen los criterios establecidos.' : 'Las condiciones de mercado no indican zonas de compra favorables.'}</p>
+                        <p>${mode === 'futures' ? 'No se encontraron señales claras en este momento.' : 'No se encontraron zonas de acumulación claras con los filtros de calidad activos.'}</p>
+                        <p style="font-size:13px;color:#5a6b7e;margin-top:6px;">${mode === 'futures' ? 'Las condiciones de mercado no cumplen los criterios establecidos.' : 'Asegúrate de que las monedas cumplan: Vol > 5M, Vol ratio > 0.5x, Precio > $0.01.'}</p>
                     </div>
                 `;
                 return;
@@ -1356,7 +1379,6 @@
 
             let html = `<table><thead><tr>`;
             if (mode === 'futures') {
-                // Futuros no tiene ordenamiento, pero por si acaso
                 html += `
                     <th>#</th><th>Moneda</th><th>Señal</th><th>Precio Ideal</th><th>Precio Actual</th>
                     <th>TP (Take Profit)</th><th>SL (Stop Loss)</th><th>SCORE</th><th>VOL RATIO</th>
@@ -1390,7 +1412,7 @@
 
             signals.forEach((r, idx) => {
                 if (mode === 'futures') {
-                    // (código futuros, pero no se usa aquí)
+                    // (no se usa aquí)
                 } else {
                     const discount = r.discountPercent || 0;
                     const discountStr = discount > 0 ? `-${discount.toFixed(1)}%` : `${discount.toFixed(1)}%`;
@@ -1420,7 +1442,7 @@
             html += `</tbody></table>`;
             container.innerHTML = html;
 
-            // Re-asignar eventos de ordenamiento (los th tienen data-sort)
+            // Re-asignar eventos de ordenamiento
             if (mode === 'spot') {
                 const headers = container.querySelectorAll('.sortable-header');
                 headers.forEach(th => {
@@ -1510,7 +1532,6 @@
         async function runAnalysis(mode) {
             try {
                 renderExecuted = false;
-                // Resetear ordenamiento al cambiar de modo
                 sortState.column = null;
                 sortState.ascending = true;
                 lastSortedResults = [];
@@ -1519,8 +1540,8 @@
                 const minVolume = mode === 'futures' ? CONFIG.FUTURES_MIN_VOLUME : CONFIG.SPOT_MIN_VOLUME;
 
                 document.getElementById('marketLabel').textContent = label;
-                document.getElementById('volFilterLabel').textContent = mode === 'futures' ? '(≥50M)' : '(≥1M)';
-                document.getElementById('topTableTitle').textContent = mode === 'futures' ? 'Top por Volumen (≥50M USDT)' : 'Top por Volumen (≥1M USDT)';
+                document.getElementById('volFilterLabel').textContent = mode === 'futures' ? '(≥50M)' : '(≥5M)';
+                document.getElementById('topTableTitle').textContent = mode === 'futures' ? 'Top por Volumen (≥50M USDT)' : 'Top por Volumen (≥5M USDT)';
                 document.getElementById('signalsTitle').textContent = mode === 'futures' ? 'Recomendaciones Estratégicas' : 'Zonas de Acumulación';
 
                 updateProgress(5, `Obteniendo datos de ${label}...`);
@@ -1630,8 +1651,6 @@
                 document.getElementById('topCount').textContent =
                     `${sortedResults.length} monedas`;
 
-                // El contador ya está corriendo desde el inicio
-
                 loadingOverlay.classList.add('hidden');
                 mainContent.style.display = 'block';
 
@@ -1646,7 +1665,7 @@
                     <div class="empty-state">
                         <i class="fas fa-exclamation-triangle"></i>
                         <p>Error al cargar los datos: ${err.message}</p>
-                        <p style="font-size:13px;color:#5a6b7e;margin-top:8px;">Por favor, recarga la página o intenta más tarde.<br>Si estás en un servidor HTTPS (GitHub Pages) y el error persiste, es posible que la API de Binance esté experimentando problemas.</p>
+                        <p style="font-size:13px;color:#5a6b7e;margin-top:8px;">Por favor, recarga la página o intenta más tarde.</p>
                     </div>
                 `;
             }
@@ -1673,7 +1692,6 @@
         }
 
         document.addEventListener('DOMContentLoaded', () => {
-            // Iniciar el contador de la vela de 4H desde el principio
             updateCountdown();
             setInterval(updateCountdown, 1000);
 
@@ -1705,9 +1723,9 @@
             });
         });
 
-        console.log('🔍 Alpha Crypto Analyzer v22.0 - Spot con ordenamiento de columnas (clic en encabezados)');
+        console.log('🔍 Alpha Crypto Analyzer v23.0 - Spot con filtros de calidad (Vol ≥5M, ratio ≥0.5x, precio ≥$0.01)');
         console.log('📊 Futuros: trading sin cambios.');
-        console.log('📊 Spot: acumulación con descuento, RSI, volumen y ordenamiento interactivo.');
+        console.log('📊 Spot: acumulación con descuento, RSI, volumen, ordenamiento y filtros de calidad.');
     </script>
 </body>
 </html>
