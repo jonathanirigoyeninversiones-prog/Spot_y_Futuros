@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Alpha Crypto - Futuros & Spot</title>
+    <title>zzzz Alpha Crypto - Futuros (trading) & Spot (acumulación)</title>
     <style>
         /* ===== RESET Y BASE ===== */
         * {
@@ -549,7 +549,7 @@
             </button>
             <button class="selector-btn spot" id="btnSpot">
                 💰 Spot
-                <span class="sub">Acumulación y hold · Zonas de compra</span>
+                <span class="sub">Acumulación · Descuento y sobreventa</span>
             </button>
         </div>
     </div>
@@ -609,13 +609,13 @@
         </footer>
     </div>
 
-    <!-- ===== JAVASCRIPT (SIN TENDENCIA SEMANAL, CON CONTADOR EN SELECTOR) ===== -->
+    <!-- ===== JAVASCRIPT ===== -->
     <script>
         // ============================================================
         //  CONFIGURACIÓN
         // ============================================================
         const CONFIG = {
-            // Futuros
+            // Futuros (intacto)
             BINANCE_FUTURES_BASE: 'https://fapi.binance.com',
             FUTURES_MIN_VOLUME: 50000000,
             FUTURES_SL_MULTIPLIER_NORMAL: 1.2,
@@ -623,7 +623,7 @@
             FUTURES_SL_MULTIPLIER_HIGH_VOL: 1.0,
             FUTURES_TP_MULTIPLIER_HIGH_VOL: 2.0,
             FUTURES_ENTRY_ADJUST: 0.995,
-            // Spot
+            // Spot (nueva lógica)
             SPOT_BASE: 'https://api.binance.com',
             SPOT_MIN_VOLUME: 1000000,
             // Comunes
@@ -741,7 +741,7 @@
         }
 
         // ============================================================
-        //  ANÁLISIS DE FUTUROS (SIN TENDENCIA SEMANAL)
+        //  ANÁLISIS DE FUTUROS (INTACTO - SIN CAMBIOS)
         // ============================================================
         function analyzeFuturesCoin(symbol, dailyKlines, fourHKlines) {
             const dOpen = dailyKlines.map(c => parseFloat(c[1]));
@@ -897,7 +897,7 @@
         }
 
         // ============================================================
-        //  ANÁLISIS DE SPOT (SIN TENDENCIA SEMANAL, SIN TP/SL)
+        //  ANÁLISIS DE SPOT (NUEVA LÓGICA DE ACUMULACIÓN)
         // ============================================================
         function analyzeSpotCoin(symbol, dailyKlines, fourHKlines) {
             const dOpen = dailyKlines.map(c => parseFloat(c[1]));
@@ -952,43 +952,55 @@
 
             const trend4h = (fPrice > fEma200v) ? 'BULLISH' : 'BEARISH';
 
-            if (trendDaily !== trend4h) {
-                return { signal: 'NEUTRAL', score: 0, reason: 'Tendencia diaria y 4h no coinciden', effectiveness: 0 };
-            }
-
-            let longScore = 0;
-
-            if (trendDaily === 'BULLISH') {
-                const rsiOk = (rsi !== null && rsi >= 20 && rsi <= 40 &&
-                    lastIdx >= 3 && dRsi[lastIdx] > dRsi[lastIdx - 1] && dRsi[lastIdx - 1] > dRsi[lastIdx - 2]);
-                const volBreakOk = (() => {
-                    if (lastIdx < 5) return false;
-                    const avgPrev4 = (dVolume[lastIdx-4] + dVolume[lastIdx-3] + dVolume[lastIdx-2] + dVolume[lastIdx-1]) / 4;
-                    return vol > avgPrev4;
-                })();
-                const volOk = (vol > volSma && dailyCandleGreen && volBreakOk);
-                if (rsiOk && volOk) {
-                    longScore += 15;
-                    if (ema20 > ema50) longScore += 15;
-                    if (fEma20v > fEma50v) longScore += 10;
-                    if (fVol > fVolSmaV && fourHCandleGreen) longScore += 5;
-                    const trendline = findDynamicTrendline(dHigh, dLow, dClose, 20);
-                    if (trendline.break && trendline.slope < 0) longScore += 12;
-                    else if (trendline.break) longScore += 6;
-                    const bodyRange = (dHigh[lastIdx] - dLow[lastIdx]) / currentPrice;
-                    if (bodyRange > 0.02) longScore += 5;
-                } else longScore = 0;
-            }
-
-            let signal = 'NEUTRAL';
+            // ---- NUEVA LÓGICA DE ACUMULACIÓN (NO DEPENDE DE TENDENCIA ALCISTA) ----
             let score = 0;
-            if (longScore >= CONFIG.MIN_SIGNAL_SCORE) {
+
+            // 1. Descuento respecto a EMA200 (cuanto más bajo, mejor)
+            if (currentPrice < ema200) {
+                const discount = ((ema200 - currentPrice) / ema200) * 100;
+                if (discount > 15) score += 20;
+                else if (discount > 10) score += 15;
+                else if (discount > 5) score += 10;
+                else score += 5;
+            } else {
+                // Si está por encima, no penalizamos, solo no sumamos
+                score += 0;
+            }
+
+            // 2. RSI bajo (sobreventa)
+            if (rsi !== null && rsi <= 35) {
+                score += 15;
+            } else if (rsi !== null && rsi <= 45) {
+                score += 8;
+            }
+
+            // 3. Volumen > SMA20 (interés de compra)
+            if (vol > volSma) score += 10;
+
+            // 4. Vela roja (mejor para acumular en caídas)
+            if (!dailyCandleGreen) score += 5;
+            else score += 2; // verde también suma, pero menos
+
+            // 5. Cerca de soporte (mínimo de 20 días)
+            const min20 = Math.min(...dClose.slice(-20));
+            const distanceToMin20 = Math.abs((currentPrice - min20) / currentPrice) * 100;
+            if (distanceToMin20 < 5) score += 10;
+            else if (distanceToMin20 < 10) score += 5;
+
+            // 6. Confirmación de 4H (que no esté en clara tendencia bajista extrema)
+            // Si 4H es alcista o neutral, sumamos un extra
+            if (trend4h === 'BULLISH') score += 5;
+            else if (Math.abs(fPrice - fEma200v) / fPrice < 0.03) score += 3; // cerca de EMA200 = neutral
+
+            // ---- DECISIÓN ----
+            let signal = 'NEUTRAL';
+            if (score >= CONFIG.MIN_SIGNAL_SCORE) {
                 signal = 'ACUMULACIÓN';
-                score = longScore;
             }
 
             const effectiveness = clamp(score * 1.2, 0, 98);
 
+            // Sin TP/SL
             return {
                 signal,
                 score,
@@ -1005,12 +1017,12 @@
                 rsi,
                 volume: vol,
                 volSma,
-                reason: signal === 'NEUTRAL' ? 'Condiciones insuficientes' : 'Zona de acumulación'
+                reason: signal === 'NEUTRAL' ? 'No es zona de acumulación' : 'Zona de acumulación'
             };
         }
 
         // ============================================================
-        //  API (Futuros y Spot)
+        //  API (Futuros y Spot) - sin cambios
         // ============================================================
         async function fetchFuturesKlines(symbol, interval, limit = CONFIG.KLINES_LIMIT) {
             const url = `${CONFIG.BINANCE_FUTURES_BASE}/fapi/v1/klines?symbol=${symbol}&interval=${interval}&limit=${limit}`;
@@ -1095,7 +1107,7 @@
         }
 
         // ============================================================
-        //  RENDERIZADO
+        //  RENDERIZADO (sin cambios)
         // ============================================================
         function renderSignalsTable(results, mode) {
             const container = document.getElementById('signalsTableContainer');
@@ -1123,7 +1135,7 @@
                 `;
             } else {
                 html += `
-                    <th>#</th><th>Moneda</th><th>Señal</th><th>Precio Actual</th><th>Tendencia</th><th>RSI</th>
+                    <th>#</th><th>Moneda</th><th>Señal</th><th>Precio Actual</th><th>Descuento vs EMA200</th><th>RSI</th>
                     <th>Vol Ratio</th><th>Score</th><th>Efectividad</th><th>Detalles</th>
                 `;
             }
@@ -1156,7 +1168,9 @@
                         </tr>
                     `;
                 } else {
-                    const trendText = r.trendDaily === 'BULLISH' ? '📈 Alcista' : '📉 Bajista';
+                    // Spot (Acumulación)
+                    const discount = r.ema200 ? ((r.ema200 - r.currentPrice) / r.ema200 * 100) : 0;
+                    const discountStr = discount > 0 ? `-${discount.toFixed(1)}%` : `${discount.toFixed(1)}%`;
                     const rsiVal = r.rsi?.toFixed(1) || '—';
                     let volRatio = '—';
                     if (r.volSma && r.volSma > 0) volRatio = (r.volume / r.volSma).toFixed(2) + 'x';
@@ -1170,7 +1184,7 @@
                             <td><div class="coin-name">${r.name}<span class="symbol">${r.symbol}</span></div></td>
                             <td><span class="signal-long">${r.signal}</span></td>
                             <td class="price-num">${formatPrice(r.currentPrice)}</td>
-                            <td>${trendText}</td>
+                            <td style="color:${discount > 5 ? '#2f8d46' : '#f0b90b'};">${discountStr}</td>
                             <td>${rsiVal}</td>
                             <td style="font-weight:500;color:#9aabb8;">${volRatio}</td>
                             <td style="font-weight:700;color:#f0b90b;">${r.score || 0}</td>
@@ -1366,7 +1380,7 @@
                 document.getElementById('topCount').textContent =
                     `${sortedResults.length} monedas`;
 
-                // No iniciamos el contador aquí, ya está corriendo desde el inicio
+                // El contador ya está corriendo desde el inicio
 
                 loadingOverlay.classList.add('hidden');
                 mainContent.style.display = 'block';
@@ -1441,9 +1455,9 @@
             });
         });
 
-        console.log('🔍 Alpha Crypto Analyzer v20.4 - Contador en selector inicial');
-        console.log('📊 Futuros: sin semanal, fapi.binance.com, filtro ≥50M.');
-        console.log('📊 Spot: sin semanal, api.binance.com, filtro ≥1M, acumulación sin TP/SL.');
+        console.log('🔍 Alpha Crypto Analyzer v21.0 - Spot con nueva lógica de acumulación (descuento + sobreventa)');
+        console.log('📊 Futuros: trading sin cambios.');
+        console.log('📊 Spot: acumulación basada en descuento sobre EMA200 y RSI bajo, sin exigir tendencia alcista.');
     </script>
 </body>
 </html>
