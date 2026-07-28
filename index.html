@@ -3,9 +3,9 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>bbb Alpha Crypto - Futuros & Spot</title>
+    <title>Alpha Crypto - Futuros & Spot (Mismo motor)</title>
     <style>
-        /* ===== RESET Y BASE (idéntico a DS-Fut-025) ===== */
+        /* ===== RESET Y BASE ===== */
         * {
             margin: 0;
             padding: 0;
@@ -599,13 +599,13 @@
         </footer>
     </div>
 
-    <!-- ===== JAVASCRIPT (LÓGICA DE FUTUROS SIN LISTAS ESTÁTICAS + SPOT) ===== -->
+    <!-- ===== JAVASCRIPT ===== -->
     <script>
         // ============================================================
         //  CONFIGURACIÓN
         // ============================================================
         const CONFIG = {
-            // Futuros (igual que DS-Fut-025)
+            // Futuros (igual que siempre)
             BINANCE_FUTURES_BASE: 'https://fapi.binance.com',
             FUTURES_MIN_VOLUME: 50000000,
             FUTURES_SL_MULTIPLIER_NORMAL: 1.2,
@@ -613,7 +613,7 @@
             FUTURES_SL_MULTIPLIER_HIGH_VOL: 1.0,
             FUTURES_TP_MULTIPLIER_HIGH_VOL: 2.0,
             FUTURES_ENTRY_ADJUST: 0.995,
-            // Spot
+            // Spot (mismo volumen que antes, 1M)
             SPOT_BASE: 'https://api.binance.com',
             SPOT_MIN_VOLUME: 1000000,
             // Comunes
@@ -652,7 +652,7 @@
         function clamp(v, min, max) { return Math.max(min, Math.min(max, v)); }
 
         // ============================================================
-        //  INDICADORES (idénticos a DS-Fut-025)
+        //  INDICADORES (comunes)
         // ============================================================
         function calcSMA(data, period) {
             const result = [];
@@ -731,7 +731,7 @@
         }
 
         // ============================================================
-        //  ANÁLISIS DE FUTUROS (EXACTAMENTE IGUAL QUE DS-Fut-025)
+        //  ANÁLISIS DE FUTUROS (INTACTO, SIN CAMBIOS)
         // ============================================================
         function analyzeFuturesCoin(symbol, dailyKlines, fourHKlines, weeklyKlines) {
             const dOpen = dailyKlines.map(c => parseFloat(c[1]));
@@ -895,9 +895,10 @@
         }
 
         // ============================================================
-        //  ANÁLISIS DE SPOT (ACUMULACIÓN, SIN TP/SL)
+        //  ANÁLISIS DE SPOT (MISMO PRINCIPIO QUE FUTUROS, PERO SIN TP/SL)
         // ============================================================
-        function analyzeSpotCoin(symbol, dailyKlines, fourHKlines) {
+        function analyzeSpotCoin(symbol, dailyKlines, fourHKlines, weeklyKlines) {
+            // Extraer datos igual que en futuros
             const dOpen = dailyKlines.map(c => parseFloat(c[1]));
             const dClose = dailyKlines.map(c => parseFloat(c[4]));
             const dHigh = dailyKlines.map(c => parseFloat(c[2]));
@@ -910,10 +911,13 @@
             const fLow = fourHKlines.map(c => parseFloat(c[3]));
             const fVolume = fourHKlines.map(c => parseFloat(c[5]));
 
-            if (dClose.length < 210 || fClose.length < 210) {
+            const wClose = weeklyKlines.map(c => parseFloat(c[4]));
+
+            if (dClose.length < 210 || fClose.length < 210 || wClose.length < 50) {
                 return { signal: 'NEUTRAL', score: 0, reason: 'Datos insuficientes', effectiveness: 0 };
             }
 
+            // Cálculo de indicadores (idéntico)
             const dEma200 = calcEMA(dClose, CONFIG.EMA_TREND);
             const dEma20 = calcEMA(dClose, CONFIG.EMA_FAST);
             const dEma50 = calcEMA(dClose, CONFIG.EMA_SLOW);
@@ -950,49 +954,74 @@
 
             const trend4h = (fPrice > fEma200v) ? 'BULLISH' : 'BEARISH';
 
-            if (trendDaily !== trend4h) {
-                return { signal: 'NEUTRAL', score: 0, reason: 'Tendencia diaria y 4h no coinciden', effectiveness: 0 };
+            const wEma200 = calcEMA(wClose, CONFIG.EMA_TREND);
+            const wIdx = wClose.length - 1;
+            const wPrice = wClose[wIdx];
+            const wEma200v = wEma200[wIdx];
+            const trendWeekly = (wPrice > wEma200v) ? 'BULLISH' : 'BEARISH';
+
+            // Confirmación de tendencia (igual que futuros)
+            if (trendDaily !== trend4h || trendDaily !== trendWeekly) {
+                return { signal: 'NEUTRAL', score: 0, reason: 'Tendencia no coincide', effectiveness: 0 };
             }
 
-            let accumulationScore = 0;
+            // Evaluación de condiciones (mismo motor que futuros, pero solo LONG)
+            let longScore = 0;
+            let shortScore = 0; // No se usa en spot, pero lo dejamos por compatibilidad
 
-            if (trendDaily === 'BULLISH') accumulationScore += 20;
-            if (rsi !== null && rsi <= 45) accumulationScore += 15;
-            else if (rsi !== null && rsi <= 55) accumulationScore += 8;
-            if (vol > volSma) accumulationScore += 10;
-            if (dailyCandleGreen) accumulationScore += 5;
+            if (trendDaily === 'BULLISH') {
+                const rsiOk = (rsi !== null && rsi >= 20 && rsi <= 40 &&
+                    lastIdx >= 3 && dRsi[lastIdx] > dRsi[lastIdx - 1] && dRsi[lastIdx - 1] > dRsi[lastIdx - 2]);
+                const volBreakOk = (() => {
+                    if (lastIdx < 5) return false;
+                    const avgPrev4 = (dVolume[lastIdx-4] + dVolume[lastIdx-3] + dVolume[lastIdx-2] + dVolume[lastIdx-1]) / 4;
+                    return vol > avgPrev4;
+                })();
+                const volOk = (vol > volSma && dailyCandleGreen && volBreakOk);
+                if (rsiOk && volOk) {
+                    longScore += 15;
+                    if (ema20 > ema50) longScore += 15;
+                    if (fEma20v > fEma50v) longScore += 10;
+                    if (fVol > fVolSmaV && fourHCandleGreen) longScore += 5;
+                    const trendline = findDynamicTrendline(dHigh, dLow, dClose, 20);
+                    if (trendline.break && trendline.slope < 0) longScore += 12;
+                    else if (trendline.break) longScore += 6;
+                    const bodyRange = (dHigh[lastIdx] - dLow[lastIdx]) / currentPrice;
+                    if (bodyRange > 0.02) longScore += 5;
+                } else longScore = 0;
+            }
 
-            const distanceToEma200 = Math.abs((currentPrice - ema200) / currentPrice) * 100;
-            if (distanceToEma200 < 10) accumulationScore += 15;
-            else if (distanceToEma200 < 20) accumulationScore += 8;
-
-            const min20 = Math.min(...dClose.slice(-20));
-            const distanceToMin20 = Math.abs((currentPrice - min20) / currentPrice) * 100;
-            if (distanceToMin20 < 5) accumulationScore += 10;
-
+            // En spot solo nos interesa LONG (acumulación)
             let signal = 'NEUTRAL';
-            let score = accumulationScore;
-            if (accumulationScore >= 50) signal = 'ACUMULACIÓN';
+            let score = 0;
+            if (longScore >= CONFIG.MIN_SIGNAL_SCORE) {
+                signal = 'ACUMULACIÓN';
+                score = longScore;
+            }
 
-            const effectiveness = clamp(accumulationScore, 0, 100);
+            const effectiveness = clamp(score * 1.2, 0, 98);
+
+            // Spot: sin TP/SL, sin ajuste de entrada
+            const entryPrice = currentPrice;
 
             return {
                 signal,
-                score: accumulationScore,
+                score,
                 effectiveness,
                 currentPrice,
-                entryPrice: currentPrice,
+                entryPrice,
                 tp: null,
                 sl: null,
                 trendDaily,
                 trend4h,
+                trendWeekly,
                 ema200,
                 ema20,
                 ema50,
                 rsi,
                 volume: vol,
                 volSma,
-                reason: signal === 'NEUTRAL' ? 'No es zona de acumulación' : 'Zona de acumulación'
+                reason: signal === 'NEUTRAL' ? 'Condiciones insuficientes' : 'Zona de acumulación'
             };
         }
 
@@ -1075,7 +1104,7 @@
         }
 
         // ============================================================
-        //  RENDERIZADO (Futuros y Spot)
+        //  RENDERIZADO
         // ============================================================
         function renderSignalsTable(results, mode) {
             const container = document.getElementById('signalsTableContainer');
@@ -1103,8 +1132,8 @@
                 `;
             } else {
                 html += `
-                    <th>#</th><th>Moneda</th><th>Precio Actual</th><th>Tendencia</th><th>RSI</th>
-                    <th>Vol Ratio</th><th>Score Acumulación</th><th>Detalles</th>
+                    <th>#</th><th>Moneda</th><th>Señal</th><th>Precio Actual</th><th>Tendencia</th><th>RSI</th>
+                    <th>Vol Ratio</th><th>Score</th><th>Efectividad</th><th>Detalles</th>
                 `;
             }
             html += `</tr></thead><tbody>`;
@@ -1136,21 +1165,26 @@
                         </tr>
                     `;
                 } else {
+                    // Spot (Acumulación)
                     const trendText = r.trendDaily === 'BULLISH' ? '📈 Alcista' : '📉 Bajista';
                     const rsiVal = r.rsi?.toFixed(1) || '—';
                     let volRatio = '—';
                     if (r.volSma && r.volSma > 0) volRatio = (r.volume / r.volSma).toFixed(2) + 'x';
                     const details = `EMA200: ${formatPrice(r.ema200)} | Vol: ${volRatio}`;
+                    const eff = r.effectiveness || 0;
+                    const effColor = eff >= 70 ? '#2f8d46' : eff >= 50 ? '#f0b90b' : '#e74c3c';
 
                     html += `
                         <tr>
                             <td style="color:#5a6b7e;font-weight:600;">${idx+1}</td>
                             <td><div class="coin-name">${r.name}<span class="symbol">${r.symbol}</span></div></td>
+                            <td><span class="signal-long">${r.signal}</span></td>
                             <td class="price-num">${formatPrice(r.currentPrice)}</td>
                             <td>${trendText}</td>
                             <td>${rsiVal}</td>
                             <td style="font-weight:500;color:#9aabb8;">${volRatio}</td>
-                            <td style="font-weight:700;color:#2f8d46;">${r.score || 0}</td>
+                            <td style="font-weight:700;color:#f0b90b;">${r.score || 0}</td>
+                            <td><div class="eff-bar"><div class="bar-bg"><div class="bar-fill" style="width:${eff}%;"></div></div><span class="eff-text" style="color:${effColor};">${eff.toFixed(0)}%</span></div></td>
                             <td style="font-size:11px;color:#7a8ba3;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${details}"><i class="fas fa-info-circle" style="color:#5a6b7e;margin-right:4px;"></i> ${details}</td>
                         </tr>
                     `;
@@ -1243,8 +1277,7 @@
                     symbols = await fetchFuturesSymbols();
                     tickers = await fetchFuturesTickers();
                     klinesFn = fetchFuturesKlines;
-                    // Para futuros, necesitamos semanales también
-                    const analyzeWithWeekly = async (symbol) => {
+                    analyzeFn = async (symbol) => {
                         const [daily, fourH, weekly] = await Promise.all([
                             klinesFn(symbol, '1d', CONFIG.KLINES_LIMIT),
                             klinesFn(symbol, '4h', CONFIG.KLINES_LIMIT),
@@ -1252,17 +1285,17 @@
                         ]);
                         return analyzeFuturesCoin(symbol, daily, fourH, weekly);
                     };
-                    analyzeFn = analyzeWithWeekly;
                 } else {
                     symbols = await fetchSpotSymbols();
                     tickers = await fetchSpotTickers();
                     klinesFn = fetchSpotKlines;
                     analyzeFn = async (symbol) => {
-                        const [daily, fourH] = await Promise.all([
+                        const [daily, fourH, weekly] = await Promise.all([
                             klinesFn(symbol, '1d', CONFIG.KLINES_LIMIT),
-                            klinesFn(symbol, '4h', CONFIG.KLINES_LIMIT)
+                            klinesFn(symbol, '4h', CONFIG.KLINES_LIMIT),
+                            klinesFn(symbol, '1w', 100)
                         ]);
-                        return analyzeSpotCoin(symbol, daily, fourH);
+                        return analyzeSpotCoin(symbol, daily, fourH, weekly);
                     };
                 }
 
@@ -1294,8 +1327,7 @@
 
                     try {
                         const analysis = await analyzeFn(symbol);
-                        // ✅ CORREGIDO: usamos analysis.currentPrice directamente
-                        const currentPrice = analysis.currentPrice || 0;
+                        const currentPrice = analysis.currentPrice;
                         const ticker = topCoins.find(t => t.symbol === symbol);
                         const quoteVol = ticker ? parseFloat(ticker.quoteVolume) : 0;
                         const priceChange = ticker ? parseFloat(ticker.priceChangePercent) : 0;
@@ -1418,9 +1450,9 @@
             });
         });
 
-        console.log('🔍 Alpha Crypto Analyzer v20.1 - Futuros (sin listas) + Spot (Acumulación)');
-        console.log('📊 Futuros: fapi.binance.com, filtro ≥50M, tendencia semanal.');
-        console.log('📊 Spot: api.binance.com, filtro ≥1M, acumulación (sin TP/SL).');
+        console.log('🔍 Alpha Crypto Analyzer v20.2 - Spot con mismo motor que futuros (sin TP/SL)');
+        console.log('📊 Futuros: fapi.binance.com, filtro ≥50M, tendencia semanal, TP/SL.');
+        console.log('📊 Spot: api.binance.com, filtro ≥1M, misma lógica técnica, sin TP/SL.');
     </script>
 </body>
 </html>
