@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Alpha Crypto - Futuros & Spot (Mismo motor)</title>
+    <title>cccc Alpha Crypto - Futuros & Spot (sin semanal)</title>
     <style>
         /* ===== RESET Y BASE ===== */
         * {
@@ -599,13 +599,13 @@
         </footer>
     </div>
 
-    <!-- ===== JAVASCRIPT ===== -->
+    <!-- ===== JAVASCRIPT (SIN TENDENCIA SEMANAL) ===== -->
     <script>
         // ============================================================
         //  CONFIGURACIÓN
         // ============================================================
         const CONFIG = {
-            // Futuros (igual que siempre)
+            // Futuros
             BINANCE_FUTURES_BASE: 'https://fapi.binance.com',
             FUTURES_MIN_VOLUME: 50000000,
             FUTURES_SL_MULTIPLIER_NORMAL: 1.2,
@@ -613,7 +613,7 @@
             FUTURES_SL_MULTIPLIER_HIGH_VOL: 1.0,
             FUTURES_TP_MULTIPLIER_HIGH_VOL: 2.0,
             FUTURES_ENTRY_ADJUST: 0.995,
-            // Spot (mismo volumen que antes, 1M)
+            // Spot
             SPOT_BASE: 'https://api.binance.com',
             SPOT_MIN_VOLUME: 1000000,
             // Comunes
@@ -731,9 +731,9 @@
         }
 
         // ============================================================
-        //  ANÁLISIS DE FUTUROS (INTACTO, SIN CAMBIOS)
+        //  ANÁLISIS DE FUTUROS (SIN TENDENCIA SEMANAL)
         // ============================================================
-        function analyzeFuturesCoin(symbol, dailyKlines, fourHKlines, weeklyKlines) {
+        function analyzeFuturesCoin(symbol, dailyKlines, fourHKlines) {
             const dOpen = dailyKlines.map(c => parseFloat(c[1]));
             const dClose = dailyKlines.map(c => parseFloat(c[4]));
             const dHigh = dailyKlines.map(c => parseFloat(c[2]));
@@ -746,9 +746,7 @@
             const fLow = fourHKlines.map(c => parseFloat(c[3]));
             const fVolume = fourHKlines.map(c => parseFloat(c[5]));
 
-            const wClose = weeklyKlines.map(c => parseFloat(c[4]));
-
-            if (dClose.length < 210 || fClose.length < 210 || wClose.length < 50) {
+            if (dClose.length < 210 || fClose.length < 210) {
                 return { signal: 'NEUTRAL', score: 0, reason: 'Datos insuficientes', effectiveness: 0 };
             }
 
@@ -788,14 +786,9 @@
 
             const trend4h = (fPrice > fEma200v) ? 'BULLISH' : 'BEARISH';
 
-            const wEma200 = calcEMA(wClose, CONFIG.EMA_TREND);
-            const wIdx = wClose.length - 1;
-            const wPrice = wClose[wIdx];
-            const wEma200v = wEma200[wIdx];
-            const trendWeekly = (wPrice > wEma200v) ? 'BULLISH' : 'BEARISH';
-
-            if (trendDaily !== trend4h || trendDaily !== trendWeekly) {
-                return { signal: 'NEUTRAL', score: 0, reason: 'Tendencia no coincide', effectiveness: 0 };
+            // ---- CONFIRMACIÓN DE TENDENCIA (solo 1D y 4H) ----
+            if (trendDaily !== trend4h) {
+                return { signal: 'NEUTRAL', score: 0, reason: 'Tendencia diaria y 4h no coinciden', effectiveness: 0 };
             }
 
             let longScore = 0, shortScore = 0;
@@ -888,17 +881,16 @@
 
             return {
                 signal, score, effectiveness, currentPrice, entryPrice, tp, sl,
-                trendDaily, trend4h, trendWeekly, ema200, ema20, ema50, rsi,
+                trendDaily, trend4h, ema200, ema20, ema50, rsi,
                 volume: vol, volSma,
                 reason: signal === 'NEUTRAL' ? 'Condiciones insuficientes' : 'OK'
             };
         }
 
         // ============================================================
-        //  ANÁLISIS DE SPOT (MISMO PRINCIPIO QUE FUTUROS, PERO SIN TP/SL)
+        //  ANÁLISIS DE SPOT (SIN TENDENCIA SEMANAL, SIN TP/SL)
         // ============================================================
-        function analyzeSpotCoin(symbol, dailyKlines, fourHKlines, weeklyKlines) {
-            // Extraer datos igual que en futuros
+        function analyzeSpotCoin(symbol, dailyKlines, fourHKlines) {
             const dOpen = dailyKlines.map(c => parseFloat(c[1]));
             const dClose = dailyKlines.map(c => parseFloat(c[4]));
             const dHigh = dailyKlines.map(c => parseFloat(c[2]));
@@ -911,13 +903,10 @@
             const fLow = fourHKlines.map(c => parseFloat(c[3]));
             const fVolume = fourHKlines.map(c => parseFloat(c[5]));
 
-            const wClose = weeklyKlines.map(c => parseFloat(c[4]));
-
-            if (dClose.length < 210 || fClose.length < 210 || wClose.length < 50) {
+            if (dClose.length < 210 || fClose.length < 210) {
                 return { signal: 'NEUTRAL', score: 0, reason: 'Datos insuficientes', effectiveness: 0 };
             }
 
-            // Cálculo de indicadores (idéntico)
             const dEma200 = calcEMA(dClose, CONFIG.EMA_TREND);
             const dEma20 = calcEMA(dClose, CONFIG.EMA_FAST);
             const dEma50 = calcEMA(dClose, CONFIG.EMA_SLOW);
@@ -954,20 +943,11 @@
 
             const trend4h = (fPrice > fEma200v) ? 'BULLISH' : 'BEARISH';
 
-            const wEma200 = calcEMA(wClose, CONFIG.EMA_TREND);
-            const wIdx = wClose.length - 1;
-            const wPrice = wClose[wIdx];
-            const wEma200v = wEma200[wIdx];
-            const trendWeekly = (wPrice > wEma200v) ? 'BULLISH' : 'BEARISH';
-
-            // Confirmación de tendencia (igual que futuros)
-            if (trendDaily !== trend4h || trendDaily !== trendWeekly) {
-                return { signal: 'NEUTRAL', score: 0, reason: 'Tendencia no coincide', effectiveness: 0 };
+            if (trendDaily !== trend4h) {
+                return { signal: 'NEUTRAL', score: 0, reason: 'Tendencia diaria y 4h no coinciden', effectiveness: 0 };
             }
 
-            // Evaluación de condiciones (mismo motor que futuros, pero solo LONG)
             let longScore = 0;
-            let shortScore = 0; // No se usa en spot, pero lo dejamos por compatibilidad
 
             if (trendDaily === 'BULLISH') {
                 const rsiOk = (rsi !== null && rsi >= 20 && rsi <= 40 &&
@@ -991,7 +971,6 @@
                 } else longScore = 0;
             }
 
-            // En spot solo nos interesa LONG (acumulación)
             let signal = 'NEUTRAL';
             let score = 0;
             if (longScore >= CONFIG.MIN_SIGNAL_SCORE) {
@@ -1001,20 +980,16 @@
 
             const effectiveness = clamp(score * 1.2, 0, 98);
 
-            // Spot: sin TP/SL, sin ajuste de entrada
-            const entryPrice = currentPrice;
-
             return {
                 signal,
                 score,
                 effectiveness,
                 currentPrice,
-                entryPrice,
+                entryPrice: currentPrice,
                 tp: null,
                 sl: null,
                 trendDaily,
                 trend4h,
-                trendWeekly,
                 ema200,
                 ema20,
                 ema50,
@@ -1165,7 +1140,6 @@
                         </tr>
                     `;
                 } else {
-                    // Spot (Acumulación)
                     const trendText = r.trendDaily === 'BULLISH' ? '📈 Alcista' : '📉 Bajista';
                     const rsiVal = r.rsi?.toFixed(1) || '—';
                     let volRatio = '—';
@@ -1278,24 +1252,22 @@
                     tickers = await fetchFuturesTickers();
                     klinesFn = fetchFuturesKlines;
                     analyzeFn = async (symbol) => {
-                        const [daily, fourH, weekly] = await Promise.all([
+                        const [daily, fourH] = await Promise.all([
                             klinesFn(symbol, '1d', CONFIG.KLINES_LIMIT),
-                            klinesFn(symbol, '4h', CONFIG.KLINES_LIMIT),
-                            klinesFn(symbol, '1w', 100)
+                            klinesFn(symbol, '4h', CONFIG.KLINES_LIMIT)
                         ]);
-                        return analyzeFuturesCoin(symbol, daily, fourH, weekly);
+                        return analyzeFuturesCoin(symbol, daily, fourH);
                     };
                 } else {
                     symbols = await fetchSpotSymbols();
                     tickers = await fetchSpotTickers();
                     klinesFn = fetchSpotKlines;
                     analyzeFn = async (symbol) => {
-                        const [daily, fourH, weekly] = await Promise.all([
+                        const [daily, fourH] = await Promise.all([
                             klinesFn(symbol, '1d', CONFIG.KLINES_LIMIT),
-                            klinesFn(symbol, '4h', CONFIG.KLINES_LIMIT),
-                            klinesFn(symbol, '1w', 100)
+                            klinesFn(symbol, '4h', CONFIG.KLINES_LIMIT)
                         ]);
-                        return analyzeSpotCoin(symbol, daily, fourH, weekly);
+                        return analyzeSpotCoin(symbol, daily, fourH);
                     };
                 }
 
@@ -1450,9 +1422,9 @@
             });
         });
 
-        console.log('🔍 Alpha Crypto Analyzer v20.2 - Spot con mismo motor que futuros (sin TP/SL)');
-        console.log('📊 Futuros: fapi.binance.com, filtro ≥50M, tendencia semanal, TP/SL.');
-        console.log('📊 Spot: api.binance.com, filtro ≥1M, misma lógica técnica, sin TP/SL.');
+        console.log('🔍 Alpha Crypto Analyzer v20.3 - SIN TENDENCIA SEMANAL (futuros y spot)');
+        console.log('📊 Futuros: fapi.binance.com, filtro ≥50M, solo 1D+4H.');
+        console.log('📊 Spot: api.binance.com, filtro ≥1M, misma lógica sin TP/SL.');
     </script>
 </body>
 </html>
