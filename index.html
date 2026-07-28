@@ -3,9 +3,9 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>222 Alpha Crypto - Futuros & Spot</title>
+    <title>Alpha Crypto - Futuros & Spot</title>
     <style>
-        /* ===== RESET Y BASE ===== */
+        /* ===== RESET Y BASE (sin cambios) ===== */
         * {
             margin: 0;
             padding: 0;
@@ -202,7 +202,7 @@
             background: #3bb05c;
         }
 
-        /* ===== LOADING OVERLAY (oculto por defecto) ===== */
+        /* ===== LOADING ===== */
         #loadingOverlay {
             position: fixed;
             top: 0;
@@ -544,7 +544,7 @@
         </div>
     </div>
 
-    <!-- CONTENIDO PRINCIPAL (oculto inicialmente) -->
+    <!-- CONTENIDO PRINCIPAL -->
     <div class="container" id="mainContent" style="display:none;">
         <header class="header">
             <div class="header-left">
@@ -602,10 +602,11 @@
     <!-- ===== JAVASCRIPT ===== -->
     <script>
         // ============================================================
-        //  CONFIGURACIÓN (con proxy CORS y timeout)
+        //  CONFIGURACIÓN (con proxy alternativo y fallback)
         // ============================================================
         const CONFIG = {
-            CORS_PROXY: 'https://corsproxy.io/?',
+            CORS_PROXY: 'https://api.allorigins.win/raw?url=', // Proxy principal (más estable)
+            CORS_PROXY_FALLBACK: 'https://corsproxy.io/?',     // Fallback por si falla
             FUTURES_BASE: 'https://fapi.binance.com',
             SPOT_BASE: 'https://api.binance.com',
             FUTURES_MIN_VOLUME: 50000000,
@@ -650,19 +651,26 @@
         function clamp(v, min, max) { return Math.max(min, Math.min(max, v)); }
 
         // ============================================================
-        //  FETCH CON TIMEOUT
+        //  FETCH CON TIMEOUT Y PROXY FALLBACK
         // ============================================================
-        function fetchWithTimeout(url, timeout = CONFIG.FETCH_TIMEOUT) {
-            return Promise.race([
-                fetch(url),
-                new Promise((_, reject) =>
-                    setTimeout(() => reject(new Error('Tiempo de espera agotado')), timeout)
-                )
-            ]);
+        async function fetchWithProxy(rawUrl, useFallback = false) {
+            const proxy = useFallback ? CONFIG.CORS_PROXY_FALLBACK : CONFIG.CORS_PROXY;
+            const url = `${proxy}${encodeURIComponent(rawUrl)}`;
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), CONFIG.FETCH_TIMEOUT);
+            try {
+                const resp = await fetch(url, { signal: controller.signal });
+                clearTimeout(timeoutId);
+                if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+                return resp;
+            } catch (err) {
+                clearTimeout(timeoutId);
+                throw err;
+            }
         }
 
         // ============================================================
-        //  INDICADORES (comunes)
+        //  INDICADORES (sin cambios)
         // ============================================================
         function calcSMA(data, period) {
             const result = [];
@@ -951,37 +959,53 @@
         }
 
         // ============================================================
-        //  API PARA FUTUROS (con proxy CORS y timeout)
+        //  API PARA FUTUROS (con proxy y fallback)
         // ============================================================
         async function fetchFuturesKlines(symbol, interval, limit = CONFIG.KLINES_LIMIT) {
             const rawUrl = `${CONFIG.FUTURES_BASE}/fapi/v1/klines?symbol=${symbol}&interval=${interval}&limit=${limit}`;
-            const url = `${CONFIG.CORS_PROXY}${encodeURIComponent(rawUrl)}`;
-            const resp = await fetchWithTimeout(url);
-            if (!resp.ok) throw new Error(`Error ${resp.status} en klines ${symbol} ${interval}`);
-            return resp.json();
+            try {
+                const resp = await fetchWithProxy(rawUrl, false);
+                return await resp.json();
+            } catch (e) {
+                // Intentar con fallback
+                console.warn('Proxy principal falló, usando fallback para klines', e);
+                const respFallback = await fetchWithProxy(rawUrl, true);
+                return await respFallback.json();
+            }
         }
 
         async function fetchFuturesTickers() {
             const rawUrl = `${CONFIG.FUTURES_BASE}/fapi/v1/ticker/24hr`;
-            const url = `${CONFIG.CORS_PROXY}${encodeURIComponent(rawUrl)}`;
-            const resp = await fetchWithTimeout(url);
-            if (!resp.ok) throw new Error(`Error ${resp.status} al obtener tickers de futuros`);
-            return resp.json();
+            try {
+                const resp = await fetchWithProxy(rawUrl, false);
+                return await resp.json();
+            } catch (e) {
+                console.warn('Proxy principal falló, usando fallback para tickers', e);
+                const respFallback = await fetchWithProxy(rawUrl, true);
+                return await respFallback.json();
+            }
         }
 
         async function fetchFuturesSymbols() {
             const rawUrl = `${CONFIG.FUTURES_BASE}/fapi/v1/exchangeInfo`;
-            const url = `${CONFIG.CORS_PROXY}${encodeURIComponent(rawUrl)}`;
-            const resp = await fetchWithTimeout(url);
-            if (!resp.ok) throw new Error(`Error ${resp.status} al obtener exchangeInfo de futuros`);
-            const data = await resp.json();
-            return data.symbols
-                .filter(s => s.contractType === 'PERPETUAL' && s.status === 'TRADING' && s.quoteAsset === 'USDT')
-                .map(s => s.symbol);
+            try {
+                const resp = await fetchWithProxy(rawUrl, false);
+                const data = await resp.json();
+                return data.symbols
+                    .filter(s => s.contractType === 'PERPETUAL' && s.status === 'TRADING' && s.quoteAsset === 'USDT')
+                    .map(s => s.symbol);
+            } catch (e) {
+                console.warn('Proxy principal falló, usando fallback para exchangeInfo', e);
+                const respFallback = await fetchWithProxy(rawUrl, true);
+                const data = await respFallback.json();
+                return data.symbols
+                    .filter(s => s.contractType === 'PERPETUAL' && s.status === 'TRADING' && s.quoteAsset === 'USDT')
+                    .map(s => s.symbol);
+            }
         }
 
         // ============================================================
-        //  API PARA SPOT (sin proxy, funciona desde file://)
+        //  API PARA SPOT (sin proxy)
         // ============================================================
         async function fetchSpotKlines(symbol, interval, limit = CONFIG.KLINES_LIMIT) {
             const url = `${CONFIG.SPOT_BASE}/api/v3/klines?symbol=${symbol}&interval=${interval}&limit=${limit}`;
@@ -1310,7 +1334,7 @@
                     <div class="empty-state">
                         <i class="fas fa-exclamation-triangle"></i>
                         <p>Error al cargar los datos: ${err.message}</p>
-                        <p style="font-size:13px;color:#5a6b7e;margin-top:8px;">Por favor, recarga la página o intenta más tarde.<br>Si el problema persiste, es posible que el proxy CORS esté bloqueado. Prueba con otro proxy o despliega la web en un servidor HTTPS.</p>
+                        <p style="font-size:13px;color:#5a6b7e;margin-top:8px;">Por favor, recarga la página o intenta más tarde.<br>Si el problema persiste, es posible que el proxy CORS esté bloqueado. Prueba con otro proxy o despliega la web en un servidor HTTPS (ej. GitHub Pages).</p>
                     </div>
                 `;
             }
@@ -1320,15 +1344,11 @@
         //  EVENTOS DE SELECCIÓN Y PESTAÑAS
         // ============================================================
         function selectMode(mode) {
-            // Ocultar selector
             welcomeSelector.style.display = 'none';
-            // Mostrar overlay de carga
             loadingOverlay.classList.remove('hidden');
-            // Ocultar contenido principal hasta que termine el análisis
             mainContent.style.display = 'none';
             document.getElementById('signalsTableContainer').innerHTML = '';
             document.getElementById('topTableContainer').innerHTML = '';
-            // Activar pestaña correspondiente
             document.querySelectorAll('.tab-btn').forEach(t => t.classList.remove('active'));
             if (mode === 'futures') {
                 document.getElementById('tabFutures').classList.add('active');
@@ -1348,7 +1368,7 @@
             const tabSpot = document.getElementById('tabSpot');
 
             function switchTab(mode) {
-                if (welcomeSelector.style.display !== 'none') return; // Si no se ha seleccionado, ignorar
+                if (welcomeSelector.style.display !== 'none') return;
                 currentMode = mode;
                 document.querySelectorAll('.tab-btn').forEach(t => t.classList.remove('active'));
                 if (mode === 'futures') tabFutures.classList.add('active');
@@ -1369,7 +1389,7 @@
             });
         });
 
-        console.log('🔍 Alpha Crypto Analyzer v16.0 - Overlay oculto al inicio, análisis solo bajo demanda');
+        console.log('🔍 Alpha Crypto Analyzer v17.0 - Proxy con fallback y manejo de errores mejorado');
         console.log('📊 Futuros: datos reales de fapi.binance.com a través de proxy, filtro ≥50M.');
         console.log('📊 Spot: datos de api.binance.com, filtro ≥1M.');
     </script>
