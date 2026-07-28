@@ -3,9 +3,9 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Alpha Crypto - Análisis Pro (Futuros & Spot)</title>
+    <title>cc Alpha Crypto - Futuros & Spot (Acumulación)</title>
     <style>
-        /* ===== RESET & BASE ===== */
+        /* ===== RESET & BASE (idéntico a versiones anteriores) ===== */
         * {
             margin: 0;
             padding: 0;
@@ -485,11 +485,11 @@
         <!-- PESTAÑAS -->
         <div class="tabs">
             <button class="tab-btn active" data-mode="futures" id="tabFutures">📊 Futuros</button>
-            <button class="tab-btn" data-mode="spot" id="tabSpot">💰 Spot</button>
+            <button class="tab-btn" data-mode="spot" id="tabSpot">💰 Spot (Acumulación)</button>
         </div>
 
         <div class="section-title fade-in">
-            <i class="fas fa-bullseye"></i> Recomendaciones Estratégicas
+            <i class="fas fa-bullseye"></i> <span id="signalsTitle">Recomendaciones Estratégicas</span>
             <span class="count" id="signalCount">Cargando...</span>
         </div>
         <div class="table-wrapper fade-in delay-1">
@@ -497,7 +497,7 @@
         </div>
 
         <div class="section-title fade-in delay-2" style="margin-top:10px;">
-            <i class="fas fa-crown"></i> <span id="topTableTitle">Top por Volumen (≥50M USDT)</span>
+            <i class="fas fa-crown"></i> <span id="topTableTitle">Top por Volumen</span>
             <span class="count" id="topCount">Cargando...</span>
         </div>
         <div class="table-wrapper top-table fade-in delay-2">
@@ -516,7 +516,7 @@
         //  CONFIGURACIÓN
         // ============================================================
         const CONFIG = {
-            // Futuros
+            // Futuros (sin cambios)
             FUTURES_BASE: 'https://fapi.binance.com',
             FUTURES_MIN_VOLUME: 50000000,
             FUTURES_SL_MULTIPLIER_NORMAL: 1.2,
@@ -524,13 +524,9 @@
             FUTURES_SL_MULTIPLIER_HIGH_VOL: 1.0,
             FUTURES_TP_MULTIPLIER_HIGH_VOL: 2.0,
             FUTURES_ENTRY_ADJUST: 0.995,
-            // Spot
+            // Spot (acumulación)
             SPOT_BASE: 'https://api.binance.com',
             SPOT_MIN_VOLUME: 1000000,
-            SPOT_SL_MULTIPLIER: 1.5,
-            SPOT_TP_MULTIPLIER: 2.0,
-            SPOT_RISK_REWARD: 1.5,
-            SPOT_ENTRY_ADJUST: 1.0,
             // Comunes
             KLINES_LIMIT: 250,
             RSI_PERIOD: 14,
@@ -540,7 +536,6 @@
             EMA_TREND: 200,
             MIN_SIGNAL_SCORE: 45,
             REQUEST_DELAY_MS: 60,
-            VOLATILITY_FACTOR: 1.5,
         };
 
         // ============================================================
@@ -567,7 +562,7 @@
         function clamp(v, min, max) { return Math.max(min, Math.min(max, v)); }
 
         // ============================================================
-        //  INDICADORES
+        //  INDICADORES (comunes)
         // ============================================================
         function calcSMA(data, period) {
             const result = [];
@@ -646,7 +641,7 @@
         }
 
         // ============================================================
-        //  ANÁLISIS DE UNA MONEDA (común para futuros y spot)
+        //  ANÁLISIS (diferenciado)
         // ============================================================
         function analyzeCoin(symbol, dailyKlines, fourHKlines, weeklyKlines, mode) {
             const dOpen = dailyKlines.map(c => parseFloat(c[1]));
@@ -667,6 +662,7 @@
                 return { signal: 'NEUTRAL', score: 0, reason: 'Datos insuficientes', effectiveness: 0 };
             }
 
+            // ---- CÁLCULOS COMUNES ----
             const dEma200 = calcEMA(dClose, CONFIG.EMA_TREND);
             const dEma20 = calcEMA(dClose, CONFIG.EMA_FAST);
             const dEma50 = calcEMA(dClose, CONFIG.EMA_SLOW);
@@ -709,74 +705,77 @@
             const wEma200v = wEma200[wIdx];
             const trendWeekly = (wPrice > wEma200v) ? 'BULLISH' : 'BEARISH';
 
+            // ---- CONFIRMACIÓN DE TENDENCIA ----
             if (trendDaily !== trend4h || trendDaily !== trendWeekly) {
                 return { signal: 'NEUTRAL', score: 0, reason: 'Tendencia no coincide', effectiveness: 0 };
             }
 
-            let longScore = 0, shortScore = 0;
-
-            if (trendDaily === 'BULLISH') {
-                const rsiOk = (rsi !== null && rsi >= 20 && rsi <= 40 &&
-                    lastIdx >= 3 && dRsi[lastIdx] > dRsi[lastIdx - 1] && dRsi[lastIdx - 1] > dRsi[lastIdx - 2]);
-                const volBreakOk = (() => {
-                    if (lastIdx < 5) return false;
-                    const avgPrev4 = (dVolume[lastIdx-4] + dVolume[lastIdx-3] + dVolume[lastIdx-2] + dVolume[lastIdx-1]) / 4;
-                    return vol > avgPrev4;
-                })();
-                const volOk = (vol > volSma && dailyCandleGreen && volBreakOk);
-                if (rsiOk && volOk) {
-                    longScore += 15;
-                    if (ema20 > ema50) longScore += 15;
-                    if (fEma20v > fEma50v) longScore += 10;
-                    if (fVol > fVolSmaV && fourHCandleGreen) longScore += 5;
-                    const trendline = findDynamicTrendline(dHigh, dLow, dClose, 20);
-                    if (trendline.break && trendline.slope < 0) longScore += 12;
-                    else if (trendline.break) longScore += 6;
-                    const bodyRange = (dHigh[lastIdx] - dLow[lastIdx]) / currentPrice;
-                    if (bodyRange > 0.02) longScore += 5;
-                } else longScore = 0;
-            }
-
-            if (trendDaily === 'BEARISH') {
-                const rsiOk = (rsi !== null && rsi >= 60 && rsi <= 80 &&
-                    lastIdx >= 3 && dRsi[lastIdx] < dRsi[lastIdx - 1] && dRsi[lastIdx - 1] < dRsi[lastIdx - 2]);
-                const volBreakOk = (() => {
-                    if (lastIdx < 5) return false;
-                    const avgPrev4 = (dVolume[lastIdx-4] + dVolume[lastIdx-3] + dVolume[lastIdx-2] + dVolume[lastIdx-1]) / 4;
-                    return vol > avgPrev4;
-                })();
-                const volOk = (vol > volSma && !dailyCandleGreen && volBreakOk);
-                if (rsiOk && volOk) {
-                    shortScore += 15;
-                    if (ema20 < ema50) shortScore += 15;
-                    if (fEma20v < fEma50v) shortScore += 10;
-                    if (fVol > fVolSmaV && !fourHCandleGreen) shortScore += 5;
-                    const trendline = findDynamicTrendline(dHigh, dLow, dClose, 20);
-                    if (trendline.break && trendline.slope > 0) shortScore += 12;
-                    else if (trendline.break) shortScore += 6;
-                    const bodyRange = (dHigh[lastIdx] - dLow[lastIdx]) / currentPrice;
-                    if (bodyRange > 0.02) shortScore += 5;
-                } else shortScore = 0;
-            }
-
-            let signal = 'NEUTRAL';
-            let score = 0;
-            if (longScore >= CONFIG.MIN_SIGNAL_SCORE && longScore > shortScore + 10) {
-                signal = 'LONG';
-                score = longScore;
-            } else if (shortScore >= CONFIG.MIN_SIGNAL_SCORE && shortScore > longScore + 10) {
-                signal = 'SHORT';
-                score = shortScore;
-            }
-
-            const effectiveness = clamp(score * 1.2, 0, 98);
-
-            let entryPrice = currentPrice;
-            let tp, sl;
-            const atr = (dHigh[lastIdx] - dLow[lastIdx]) * 0.5;
-            const atrPct = atr / currentPrice;
-
+            // ---- MODO FUTUROS (TRADING) ----
             if (mode === 'futures') {
+                let longScore = 0, shortScore = 0;
+
+                if (trendDaily === 'BULLISH') {
+                    const rsiOk = (rsi !== null && rsi >= 20 && rsi <= 40 &&
+                        lastIdx >= 3 && dRsi[lastIdx] > dRsi[lastIdx - 1] && dRsi[lastIdx - 1] > dRsi[lastIdx - 2]);
+                    const volBreakOk = (() => {
+                        if (lastIdx < 5) return false;
+                        const avgPrev4 = (dVolume[lastIdx-4] + dVolume[lastIdx-3] + dVolume[lastIdx-2] + dVolume[lastIdx-1]) / 4;
+                        return vol > avgPrev4;
+                    })();
+                    const volOk = (vol > volSma && dailyCandleGreen && volBreakOk);
+                    if (rsiOk && volOk) {
+                        longScore += 15;
+                        if (ema20 > ema50) longScore += 15;
+                        if (fEma20v > fEma50v) longScore += 10;
+                        if (fVol > fVolSmaV && fourHCandleGreen) longScore += 5;
+                        const trendline = findDynamicTrendline(dHigh, dLow, dClose, 20);
+                        if (trendline.break && trendline.slope < 0) longScore += 12;
+                        else if (trendline.break) longScore += 6;
+                        const bodyRange = (dHigh[lastIdx] - dLow[lastIdx]) / currentPrice;
+                        if (bodyRange > 0.02) longScore += 5;
+                    } else longScore = 0;
+                }
+
+                if (trendDaily === 'BEARISH') {
+                    const rsiOk = (rsi !== null && rsi >= 60 && rsi <= 80 &&
+                        lastIdx >= 3 && dRsi[lastIdx] < dRsi[lastIdx - 1] && dRsi[lastIdx - 1] < dRsi[lastIdx - 2]);
+                    const volBreakOk = (() => {
+                        if (lastIdx < 5) return false;
+                        const avgPrev4 = (dVolume[lastIdx-4] + dVolume[lastIdx-3] + dVolume[lastIdx-2] + dVolume[lastIdx-1]) / 4;
+                        return vol > avgPrev4;
+                    })();
+                    const volOk = (vol > volSma && !dailyCandleGreen && volBreakOk);
+                    if (rsiOk && volOk) {
+                        shortScore += 15;
+                        if (ema20 < ema50) shortScore += 15;
+                        if (fEma20v < fEma50v) shortScore += 10;
+                        if (fVol > fVolSmaV && !fourHCandleGreen) shortScore += 5;
+                        const trendline = findDynamicTrendline(dHigh, dLow, dClose, 20);
+                        if (trendline.break && trendline.slope > 0) shortScore += 12;
+                        else if (trendline.break) shortScore += 6;
+                        const bodyRange = (dHigh[lastIdx] - dLow[lastIdx]) / currentPrice;
+                        if (bodyRange > 0.02) shortScore += 5;
+                    } else shortScore = 0;
+                }
+
+                let signal = 'NEUTRAL';
+                let score = 0;
+                if (longScore >= CONFIG.MIN_SIGNAL_SCORE && longScore > shortScore + 10) {
+                    signal = 'LONG';
+                    score = longScore;
+                } else if (shortScore >= CONFIG.MIN_SIGNAL_SCORE && shortScore > longScore + 10) {
+                    signal = 'SHORT';
+                    score = shortScore;
+                }
+
+                const effectiveness = clamp(score * 1.2, 0, 98);
+
+                // Cálculo de TP y SL (futuros)
+                let entryPrice = currentPrice;
+                let tp, sl;
+                const atr = (dHigh[lastIdx] - dLow[lastIdx]) * 0.5;
+                const atrPct = atr / currentPrice;
+
                 if (signal === 'LONG') entryPrice = currentPrice * CONFIG.FUTURES_ENTRY_ADJUST;
                 else if (signal === 'SHORT') entryPrice = currentPrice * (1 + (1 - CONFIG.FUTURES_ENTRY_ADJUST));
 
@@ -790,7 +789,7 @@
                     atrAvg = sumAtr / 30;
                 } else atrAvg = atrPct;
 
-                const highVolatility = (atrPct > CONFIG.VOLATILITY_FACTOR * atrAvg);
+                const highVolatility = (atrPct > 1.5 * atrAvg);
                 let slMult = highVolatility ? CONFIG.FUTURES_SL_MULTIPLIER_HIGH_VOL : CONFIG.FUTURES_SL_MULTIPLIER_NORMAL;
                 let tpMult = highVolatility ? CONFIG.FUTURES_TP_MULTIPLIER_HIGH_VOL : CONFIG.FUTURES_TP_MULTIPLIER_NORMAL;
 
@@ -801,29 +800,79 @@
                     sl = currentPrice * (1 + atrPct * slMult);
                     tp = currentPrice * (1 - atrPct * tpMult * 2.5);
                 } else { tp = currentPrice; sl = currentPrice; }
-            } else {
-                // Spot
-                if (signal === 'LONG') {
-                    entryPrice = currentPrice;
-                    sl = currentPrice * (1 - atrPct * CONFIG.SPOT_SL_MULTIPLIER);
-                    tp = currentPrice * (1 + atrPct * CONFIG.SPOT_TP_MULTIPLIER * CONFIG.SPOT_RISK_REWARD);
-                } else if (signal === 'SHORT') {
-                    entryPrice = currentPrice;
-                    sl = currentPrice * (1 + atrPct * CONFIG.SPOT_SL_MULTIPLIER);
-                    tp = currentPrice * (1 - atrPct * CONFIG.SPOT_TP_MULTIPLIER * CONFIG.SPOT_RISK_REWARD);
-                } else { tp = currentPrice; sl = currentPrice; }
+
+                return {
+                    signal, score, effectiveness, currentPrice, entryPrice, tp, sl,
+                    trendDaily, trend4h, trendWeekly, ema200, ema20, ema50, rsi,
+                    volume: vol, volSma,
+                    reason: signal === 'NEUTRAL' ? 'Condiciones insuficientes' : 'OK'
+                };
             }
 
+            // ---- MODO SPOT (ACUMULACIÓN) ----
+            // Solo evaluamos condiciones de acumulación (sin TP/SL)
+            let accumulationScore = 0;
+
+            // 1. Tendencia diaria alcista (muy importante)
+            if (trendDaily === 'BULLISH') accumulationScore += 20;
+
+            // 2. Tendencia semanal alcista (confirmación de fondo)
+            if (trendWeekly === 'BULLISH') accumulationScore += 15;
+
+            // 3. RSI bajo (zona de sobreventa o cercana)
+            if (rsi !== null && rsi <= 45) accumulationScore += 15;
+            else if (rsi !== null && rsi <= 55) accumulationScore += 8;
+
+            // 4. Volumen > SMA20 (interés de compra)
+            if (vol > volSma) accumulationScore += 10;
+
+            // 5. Vela verde (cierre > apertura)
+            if (dailyCandleGreen) accumulationScore += 5;
+
+            // 6. Precio cerca de la EMA 200 (distancia < 10%)
+            const distanceToEma200 = Math.abs((currentPrice - ema200) / currentPrice) * 100;
+            if (distanceToEma200 < 10) accumulationScore += 15;
+            else if (distanceToEma200 < 20) accumulationScore += 8;
+
+            // 7. Cerca de soporte (precio cerca del mínimo de 20 días)
+            const min20 = Math.min(...dClose.slice(-20));
+            const distanceToMin20 = Math.abs((currentPrice - min20) / currentPrice) * 100;
+            if (distanceToMin20 < 5) accumulationScore += 10;
+
+            // Si el score es suficiente, lo consideramos como señal de acumulación
+            let signal = 'NEUTRAL';
+            let score = accumulationScore;
+            if (accumulationScore >= 50) {
+                signal = 'ACUMULACIÓN';
+            }
+
+            // Efectividad = Score de acumulación (sin escalar)
+            const effectiveness = clamp(accumulationScore, 0, 100);
+
+            // En spot no hay TP/SL ni precio ajustado
             return {
-                signal, score, effectiveness, currentPrice, entryPrice, tp, sl,
-                trendDaily, trend4h, trendWeekly, ema200, ema20, ema50, rsi,
-                volume: vol, volSma,
-                reason: signal === 'NEUTRAL' ? 'Condiciones insuficientes' : 'OK'
+                signal,
+                score: accumulationScore,
+                effectiveness,
+                currentPrice,
+                entryPrice: currentPrice, // simplemente el precio actual
+                tp: null,
+                sl: null,
+                trendDaily,
+                trend4h,
+                trendWeekly,
+                ema200,
+                ema20,
+                ema50,
+                rsi,
+                volume: vol,
+                volSma,
+                reason: signal === 'NEUTRAL' ? 'No es zona de acumulación' : 'Zona de acumulación'
             };
         }
 
         // ============================================================
-        //  API PARA FUTUROS (fapi.binance.com)
+        //  API (sin cambios)
         // ============================================================
         async function fetchFuturesKlines(symbol, interval, limit = CONFIG.KLINES_LIMIT) {
             const url = `${CONFIG.FUTURES_BASE}/fapi/v1/klines?symbol=${symbol}&interval=${interval}&limit=${limit}`;
@@ -849,9 +898,6 @@
                 .map(s => s.symbol);
         }
 
-        // ============================================================
-        //  API PARA SPOT (api.binance.com)
-        // ============================================================
         async function fetchSpotKlines(symbol, interval, limit = CONFIG.KLINES_LIMIT) {
             const url = `${CONFIG.SPOT_BASE}/api/v3/klines?symbol=${symbol}&interval=${interval}&limit=${limit}`;
             const resp = await fetch(url);
@@ -919,12 +965,13 @@
         async function runAnalysis(mode) {
             try {
                 renderExecuted = false;
-                const label = mode === 'futures' ? 'Futuros' : 'Spot';
+                const label = mode === 'futures' ? 'Futuros' : 'Spot (Acumulación)';
                 const minVolume = mode === 'futures' ? CONFIG.FUTURES_MIN_VOLUME : CONFIG.SPOT_MIN_VOLUME;
 
                 document.getElementById('marketLabel').textContent = label;
                 document.getElementById('volFilterLabel').textContent = mode === 'futures' ? '(≥50M)' : '(≥1M)';
                 document.getElementById('topTableTitle').textContent = mode === 'futures' ? 'Top por Volumen (≥50M USDT)' : 'Top por Volumen (≥1M USDT)';
+                document.getElementById('signalsTitle').textContent = mode === 'futures' ? 'Recomendaciones Estratégicas' : 'Zonas de Acumulación';
 
                 updateProgress(5, `Obteniendo datos de ${label}...`);
 
@@ -1013,7 +1060,7 @@
                 const sortedResults = [...withSignals.sort((a, b) => b.effectiveness - a.effectiveness), ...withoutSignals];
 
                 if (!renderExecuted) {
-                    renderSignalsTable(sortedResults);
+                    renderSignalsTable(sortedResults, mode);
                     renderTopTable(sortedResults);
                     renderExecuted = true;
                 }
@@ -1048,9 +1095,9 @@
         }
 
         // ============================================================
-        //  RENDERIZADO
+        //  RENDERIZADO (diferenciado)
         // ============================================================
-        function renderSignalsTable(results) {
+        function renderSignalsTable(results, mode) {
             const container = document.getElementById('signalsTableContainer');
             container.innerHTML = '';
 
@@ -1060,76 +1107,76 @@
                 container.innerHTML = `
                     <div class="empty-state">
                         <i class="fas fa-search"></i>
-                        <p>No se encontraron señales claras en este momento.</p>
-                        <p style="font-size:13px;color:#5a6b7e;margin-top:6px;">Las condiciones de mercado no cumplen los criterios establecidos.</p>
+                        <p>${mode === 'futures' ? 'No se encontraron señales claras en este momento.' : 'No se encontraron zonas de acumulación claras en este momento.'}</p>
+                        <p style="font-size:13px;color:#5a6b7e;margin-top:6px;">${mode === 'futures' ? 'Las condiciones de mercado no cumplen los criterios establecidos.' : 'Las condiciones de mercado no indican zonas de compra favorables.'}</p>
                     </div>
                 `;
                 return;
             }
 
-            let html = `
-                <table>
-                    <thead>
-                        <tr>
-                            <th>#</th>
-                            <th>Moneda</th>
-                            <th>Señal</th>
-                            <th>Precio Ideal</th>
-                            <th>Precio Actual</th>
-                            <th>TP (Take Profit)</th>
-                            <th>SL (Stop Loss)</th>
-                            <th>SCORE</th>
-                            <th>VOL RATIO</th>
-                            <th>Efectividad</th>
-                            <th>Detalles</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-            `;
+            let html = `<table><thead><tr>`;
+            if (mode === 'futures') {
+                html += `
+                    <th>#</th><th>Moneda</th><th>Señal</th><th>Precio Ideal</th><th>Precio Actual</th>
+                    <th>TP (Take Profit)</th><th>SL (Stop Loss)</th><th>SCORE</th><th>VOL RATIO</th>
+                    <th>Efectividad</th><th>Detalles</th>
+                `;
+            } else {
+                // Spot (Acumulación)
+                html += `
+                    <th>#</th><th>Moneda</th><th>Precio Actual</th><th>Tendencia</th><th>RSI</th>
+                    <th>Vol Ratio</th><th>Score Acumulación</th><th>Detalles</th>
+                `;
+            }
+            html += `</tr></thead><tbody>`;
 
             signals.forEach((r, idx) => {
-                const signalClass = r.signal === 'LONG' ? 'signal-long' : 'signal-short';
-                const signalIcon = r.signal === 'LONG' ? '⬆' : '⬇';
-                const priceColor = r.signal === 'LONG' ? 'price-green' : 'price-red';
-                const eff = r.effectiveness || 0;
-                const effColor = eff >= 70 ? '#2f8d46' : eff >= 50 ? '#f0b90b' : '#e74c3c';
+                if (mode === 'futures') {
+                    const signalClass = r.signal === 'LONG' ? 'signal-long' : 'signal-short';
+                    const signalIcon = r.signal === 'LONG' ? '⬆' : '⬇';
+                    const priceColor = r.signal === 'LONG' ? 'price-green' : 'price-red';
+                    const eff = r.effectiveness || 0;
+                    const effColor = eff >= 70 ? '#2f8d46' : eff >= 50 ? '#f0b90b' : '#e74c3c';
+                    let volRatio = '—';
+                    if (r.volSma && r.volSma > 0) volRatio = (r.volume / r.volSma).toFixed(2) + 'x';
+                    const details = `EMA200: ${formatPrice(r.ema200)} | RSI: ${r.rsi?.toFixed(1) || '—'}`;
 
-                let volRatio = '—';
-                if (r.volSma && r.volSma > 0) {
-                    volRatio = (r.volume / r.volSma).toFixed(2) + 'x';
+                    html += `
+                        <tr>
+                            <td style="color:#5a6b7e;font-weight:600;">${idx+1}</td>
+                            <td><div class="coin-name">${r.name}<span class="symbol">${r.symbol}</span></div></td>
+                            <td><span class="${signalClass}">${signalIcon} ${r.signal}</span></td>
+                            <td class="price-num ${priceColor}">${formatPrice(r.entryPrice)}</td>
+                            <td class="price-num">${formatPrice(r.currentPrice)}</td>
+                            <td class="price-num price-green">${formatPrice(r.tp)}</td>
+                            <td class="price-num price-red">${formatPrice(r.sl)}</td>
+                            <td style="font-weight:700;color:#f0b90b;">${r.score || 0}</td>
+                            <td style="font-weight:500;color:#9aabb8;">${volRatio}</td>
+                            <td><div class="eff-bar"><div class="bar-bg"><div class="bar-fill" style="width:${eff}%;"></div></div><span class="eff-text" style="color:${effColor};">${eff.toFixed(0)}%</span></div></td>
+                            <td style="font-size:11px;color:#7a8ba3;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${details}"><i class="fas fa-info-circle" style="color:#5a6b7e;margin-right:4px;"></i> ${details}</td>
+                        </tr>
+                    `;
+                } else {
+                    // Spot (Acumulación)
+                    const trendText = r.trendDaily === 'BULLISH' ? '📈 Alcista' : '📉 Bajista';
+                    const rsiVal = r.rsi?.toFixed(1) || '—';
+                    let volRatio = '—';
+                    if (r.volSma && r.volSma > 0) volRatio = (r.volume / r.volSma).toFixed(2) + 'x';
+                    const details = `EMA200: ${formatPrice(r.ema200)} | Vol: ${volRatio}`;
+
+                    html += `
+                        <tr>
+                            <td style="color:#5a6b7e;font-weight:600;">${idx+1}</td>
+                            <td><div class="coin-name">${r.name}<span class="symbol">${r.symbol}</span></div></td>
+                            <td class="price-num">${formatPrice(r.currentPrice)}</td>
+                            <td>${trendText}</td>
+                            <td>${rsiVal}</td>
+                            <td style="font-weight:500;color:#9aabb8;">${volRatio}</td>
+                            <td style="font-weight:700;color:#2f8d46;">${r.score || 0}</td>
+                            <td style="font-size:11px;color:#7a8ba3;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${details}"><i class="fas fa-info-circle" style="color:#5a6b7e;margin-right:4px;"></i> ${details}</td>
+                        </tr>
+                    `;
                 }
-
-                const details = `EMA200: ${formatPrice(r.ema200)} | RSI: ${r.rsi?.toFixed(1) || '—'}`;
-
-                html += `
-                    <tr>
-                        <td style="color:#5a6b7e;font-weight:600;">${idx+1}</td>
-                        <td>
-                            <div class="coin-name">
-                                ${r.name}
-                                <span class="symbol">${r.symbol}</span>
-                            </div>
-                        </td>
-                        <td><span class="${signalClass}">${signalIcon} ${r.signal}</span></td>
-                        <td class="price-num ${priceColor}">${formatPrice(r.entryPrice)}</td>
-                        <td class="price-num">${formatPrice(r.currentPrice)}</td>
-                        <td class="price-num price-green">${formatPrice(r.tp)}</td>
-                        <td class="price-num price-red">${formatPrice(r.sl)}</td>
-                        <td style="font-weight:700;color:#f0b90b;">${r.score || 0}</td>
-                        <td style="font-weight:500;color:#9aabb8;">${volRatio}</td>
-                        <td>
-                            <div class="eff-bar">
-                                <div class="bar-bg">
-                                    <div class="bar-fill" style="width:${eff}%;"></div>
-                                </div>
-                                <span class="eff-text" style="color:${effColor};">${eff.toFixed(0)}%</span>
-                            </div>
-                        </td>
-                        <td style="font-size:11px;color:#7a8ba3;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${details}">
-                            <i class="fas fa-info-circle" style="color:#5a6b7e;margin-right:4px;"></i> ${details}
-                        </td>
-                    </tr>
-                `;
             });
 
             html += `</tbody></table>`;
@@ -1146,13 +1193,9 @@
                 <table>
                     <thead>
                         <tr>
-                            <th>#</th>
-                            <th>Moneda</th>
-                            <th>Precio (USDT)</th>
-                            <th>Variación 24h</th>
-                            <th>Volumen 24h (USDT)</th>
-                            <th>Señal</th>
-                            <th>Efect.</th>
+                            <th>#</th><th>Moneda</th><th>Precio (USDT)</th>
+                            <th>Variación 24h</th><th>Volumen 24h (USDT)</th>
+                            <th>Señal</th><th>Efect.</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -1161,7 +1204,8 @@
             sorted.forEach((r, idx) => {
                 const rankClass = idx === 0 ? 'rank-1' : idx === 1 ? 'rank-2' : idx === 2 ? 'rank-3' : '';
                 const signalClass = r.signal === 'LONG' ? 'signal-long' :
-                    r.signal === 'SHORT' ? 'signal-short' : 'signal-neutral';
+                    r.signal === 'SHORT' ? 'signal-short' :
+                    r.signal === 'ACUMULACIÓN' ? 'signal-long' : 'signal-neutral';
                 const signalText = r.signal === 'NEUTRAL' ? '—' : r.signal;
                 const changeColor = r.priceChange >= 0 ? 'price-green' : 'price-red';
                 const eff = r.effectiveness || 0;
@@ -1174,12 +1218,7 @@
                 html += `
                     <tr>
                         <td><span class="rank-num ${rankClass}">${idx+1}</span></td>
-                        <td>
-                            <div class="coin-name">
-                                ${r.name}
-                                <span class="symbol">${r.symbol}</span>
-                            </div>
-                        </td>
+                        <td><div class="coin-name">${r.name}<span class="symbol">${r.symbol}</span></div></td>
                         <td class="price-num">${formatPrice(r.currentPrice)}</td>
                         <td class="price-num ${changeColor}">${r.priceChange ? r.priceChange.toFixed(2) : '—'}%</td>
                         <td style="font-weight:500;">${volFormatted}</td>
@@ -1220,14 +1259,12 @@
                 if (currentMode !== 'spot') switchTab('spot');
             });
 
-            // Iniciar con futuros
             runAnalysis('futures');
         });
 
-        console.log('🔍 Alpha Crypto Analyzer v10.0 - GitHub Pages Ready');
-        console.log('📊 Futuros: fapi.binance.com, volumen ≥50M, ATR dinámico.');
-        console.log('📊 Spot: api.binance.com, volumen ≥1M, SL/TP fijos.');
-        console.log('📊 Análisis con tendencia semanal, filtro de volumen en ruptura.');
+        console.log('🔍 Alpha Crypto Analyzer v12.0 - Spot enfocado en ACUMULACIÓN (sin TP/SL)');
+        console.log('📊 Spot: Identifica zonas de acumulación basadas en tendencia, RSI, volumen y proximidad a soportes.');
+        console.log('📊 Futuros: sin cambios (Long/Short con TP/SL).');
     </script>
 </body>
 </html>
