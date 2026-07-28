@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Alpha Crypto - Futuros & Spot</title>
+    <title>bbb Alpha Crypto - Futuros & Spot</title>
     <style>
         /* ===== RESET Y BASE (idéntico a DS-Fut-025) ===== */
         * {
@@ -1294,7 +1294,8 @@
 
                     try {
                         const analysis = await analyzeFn(symbol);
-                        const currentPrice = analysis.currentPrice || parseFloat(daily[daily.length - 1][4]);
+                        // ✅ CORREGIDO: usamos analysis.currentPrice directamente
+                        const currentPrice = analysis.currentPrice || 0;
                         const ticker = topCoins.find(t => t.symbol === symbol);
                         const quoteVol = ticker ? parseFloat(ticker.quoteVolume) : 0;
                         const priceChange = ticker ? parseFloat(ticker.priceChangePercent) : 0;
@@ -1302,7 +1303,7 @@
                         results.push({
                             symbol,
                             name: symbol.replace('USDT', ''),
-                            currentPrice: analysis.currentPrice || currentPrice,
+                            currentPrice,
                             quoteVolume: quoteVol,
                             priceChange,
                             ...analysis,
@@ -1417,7 +1418,7 @@
             });
         });
 
-        console.log('🔍 Alpha Crypto Analyzer v20.0 - Futuros (sin listas) + Spot (Acumulación)');
+        console.log('🔍 Alpha Crypto Analyzer v20.1 - Futuros (sin listas) + Spot (Acumulación)');
         console.log('📊 Futuros: fapi.binance.com, filtro ≥50M, tendencia semanal.');
         console.log('📊 Spot: api.binance.com, filtro ≥1M, acumulación (sin TP/SL).');
     </script>
