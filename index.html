@@ -3,9 +3,9 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Alpha Crypto - Futuros & Spot</title>
+    <title>ccc Alpha Crypto - Futuros & Spot (sin tendencia semanal)</title>
     <style>
-        /* ===== RESET Y BASE (sin cambios) ===== */
+        /* ===== RESET Y BASE (idéntico a versiones anteriores) ===== */
         * {
             margin: 0;
             padding: 0;
@@ -602,11 +602,11 @@
     <!-- ===== JAVASCRIPT ===== -->
     <script>
         // ============================================================
-        //  CONFIGURACIÓN (con proxy alternativo y fallback)
+        //  CONFIGURACIÓN (con proxy y fallback)
         // ============================================================
         const CONFIG = {
-            CORS_PROXY: 'https://api.allorigins.win/raw?url=', // Proxy principal (más estable)
-            CORS_PROXY_FALLBACK: 'https://corsproxy.io/?',     // Fallback por si falla
+            CORS_PROXY: 'https://api.allorigins.win/raw?url=',
+            CORS_PROXY_FALLBACK: 'https://corsproxy.io/?',
             FUTURES_BASE: 'https://fapi.binance.com',
             SPOT_BASE: 'https://api.binance.com',
             FUTURES_MIN_VOLUME: 50000000,
@@ -749,9 +749,9 @@
         }
 
         // ============================================================
-        //  ANÁLISIS (sin cambios)
+        //  ANÁLISIS (SIN TENDENCIA SEMANAL)
         // ============================================================
-        function analyzeCoin(symbol, dailyKlines, fourHKlines, weeklyKlines, mode) {
+        function analyzeCoin(symbol, dailyKlines, fourHKlines, mode) {
             const dOpen = dailyKlines.map(c => parseFloat(c[1]));
             const dClose = dailyKlines.map(c => parseFloat(c[4]));
             const dHigh = dailyKlines.map(c => parseFloat(c[2]));
@@ -764,9 +764,7 @@
             const fLow = fourHKlines.map(c => parseFloat(c[3]));
             const fVolume = fourHKlines.map(c => parseFloat(c[5]));
 
-            const wClose = weeklyKlines.map(c => parseFloat(c[4]));
-
-            if (dClose.length < 210 || fClose.length < 210 || wClose.length < 50) {
+            if (dClose.length < 210 || fClose.length < 210) {
                 return { signal: 'NEUTRAL', score: 0, reason: 'Datos insuficientes', effectiveness: 0 };
             }
 
@@ -806,16 +804,12 @@
 
             const trend4h = (fPrice > fEma200v) ? 'BULLISH' : 'BEARISH';
 
-            const wEma200 = calcEMA(wClose, CONFIG.EMA_TREND);
-            const wIdx = wClose.length - 1;
-            const wPrice = wClose[wIdx];
-            const wEma200v = wEma200[wIdx];
-            const trendWeekly = (wPrice > wEma200v) ? 'BULLISH' : 'BEARISH';
-
-            if (trendDaily !== trend4h || trendDaily !== trendWeekly) {
-                return { signal: 'NEUTRAL', score: 0, reason: 'Tendencia no coincide', effectiveness: 0 };
+            // ---- CONFIRMACIÓN DE TENDENCIA (solo 1D y 4H) ----
+            if (trendDaily !== trend4h) {
+                return { signal: 'NEUTRAL', score: 0, reason: 'Tendencia diaria y 4h no coinciden', effectiveness: 0 };
             }
 
+            // ---- EVALUACIÓN DE CONDICIONES ----
             if (mode === 'futures') {
                 let longScore = 0, shortScore = 0;
 
@@ -907,7 +901,7 @@
 
                 return {
                     signal, score, effectiveness, currentPrice, entryPrice, tp, sl,
-                    trendDaily, trend4h, trendWeekly, ema200, ema20, ema50, rsi,
+                    trendDaily, trend4h, ema200, ema20, ema50, rsi,
                     volume: vol, volSma,
                     reason: signal === 'NEUTRAL' ? 'Condiciones insuficientes' : 'OK'
                 };
@@ -917,7 +911,6 @@
             let accumulationScore = 0;
 
             if (trendDaily === 'BULLISH') accumulationScore += 20;
-            if (trendWeekly === 'BULLISH') accumulationScore += 15;
             if (rsi !== null && rsi <= 45) accumulationScore += 15;
             else if (rsi !== null && rsi <= 55) accumulationScore += 8;
             if (vol > volSma) accumulationScore += 10;
@@ -947,7 +940,6 @@
                 sl: null,
                 trendDaily,
                 trend4h,
-                trendWeekly,
                 ema200,
                 ema20,
                 ema50,
@@ -967,7 +959,6 @@
                 const resp = await fetchWithProxy(rawUrl, false);
                 return await resp.json();
             } catch (e) {
-                // Intentar con fallback
                 console.warn('Proxy principal falló, usando fallback para klines', e);
                 const respFallback = await fetchWithProxy(rawUrl, true);
                 return await respFallback.json();
@@ -1032,7 +1023,7 @@
         }
 
         // ============================================================
-        //  CONTADOR DE CIERRE DE VELA 4H
+        //  CONTADOR DE CIERRE DE VELA 4H (sin cambios)
         // ============================================================
         function updateCountdown() {
             const now = Date.now();
@@ -1059,7 +1050,7 @@
         }
 
         // ============================================================
-        //  RENDERIZADO
+        //  RENDERIZADO (sin cambios)
         // ============================================================
         function renderSignalsTable(results, mode) {
             const container = document.getElementById('signalsTableContainer');
@@ -1259,13 +1250,13 @@
                     updateProgress(pct, `Analizando ${symbol} (${i+1}/${total})...`);
 
                     try {
-                        const [daily, fourH, weekly] = await Promise.all([
+                        // Solo se obtienen velas diarias y 4H (sin semanales)
+                        const [daily, fourH] = await Promise.all([
                             klinesFn(symbol, '1d', CONFIG.KLINES_LIMIT),
-                            klinesFn(symbol, '4h', CONFIG.KLINES_LIMIT),
-                            klinesFn(symbol, '1w', 100)
+                            klinesFn(symbol, '4h', CONFIG.KLINES_LIMIT)
                         ]);
 
-                        const analysis = analyzeCoin(symbol, daily, fourH, weekly, mode);
+                        const analysis = analyzeCoin(symbol, daily, fourH, mode);
                         const currentPrice = parseFloat(daily[daily.length - 1][4]);
                         const ticker = topCoins.find(t => t.symbol === symbol);
                         const quoteVol = ticker ? parseFloat(ticker.quoteVolume) : 0;
@@ -1389,9 +1380,10 @@
             });
         });
 
-        console.log('🔍 Alpha Crypto Analyzer v17.0 - Proxy con fallback y manejo de errores mejorado');
-        console.log('📊 Futuros: datos reales de fapi.binance.com a través de proxy, filtro ≥50M.');
-        console.log('📊 Spot: datos de api.binance.com, filtro ≥1M.');
+        console.log('🔍 Alpha Crypto Analyzer v18.0 - SIN tendencia semanal');
+        console.log('📊 Solo confirmación 1D y 4H.');
+        console.log('📊 Futuros: filtro ≥50M, TP/SL dinámicos.');
+        console.log('📊 Spot: filtro ≥1M, acumulación (sin TP/SL).');
     </script>
 </body>
 </html>
