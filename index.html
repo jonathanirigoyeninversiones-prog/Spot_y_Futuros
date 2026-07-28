@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>cc Alpha Crypto - Futuros & Spot (Acumulación)</title>
+    <title>Alpha Crypto - Futuros & Spot (Acumulación)</title>
     <style>
         /* ===== RESET & BASE (idéntico a versiones anteriores) ===== */
         * {
@@ -107,6 +107,63 @@
         @keyframes pulse-dot {
             0%, 100% { opacity: 1; transform: scale(1); }
             50% { opacity: 0.4; transform: scale(0.8); }
+        }
+
+        /* ===== SELECTOR INICIAL ===== */
+        #welcomeSelector {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 60vh;
+            text-align: center;
+        }
+        #welcomeSelector h2 {
+            font-size: 28px;
+            margin-bottom: 10px;
+            color: #e8edf5;
+        }
+        #welcomeSelector p {
+            font-size: 16px;
+            color: #7a8ba3;
+            margin-bottom: 30px;
+        }
+        .selector-buttons {
+            display: flex;
+            gap: 30px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+        .selector-btn {
+            background: #151e2b;
+            border: 2px solid #2a3648;
+            color: #c8d4e0;
+            padding: 20px 50px;
+            border-radius: 16px;
+            font-size: 22px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-family: inherit;
+            min-width: 200px;
+        }
+        .selector-btn:hover {
+            background: #1f2a3a;
+            border-color: #2f8d46;
+            transform: scale(1.03);
+        }
+        .selector-btn.futures:hover {
+            border-color: #f0b90b;
+        }
+        .selector-btn.spot:hover {
+            border-color: #2f8d46;
+        }
+        .selector-btn .sub {
+            display: block;
+            font-size: 13px;
+            font-weight: 400;
+            color: #7a8ba3;
+            margin-top: 5px;
         }
 
         /* ===== PESTAÑAS ===== */
@@ -431,11 +488,14 @@
             .signal-long, .signal-short, .signal-neutral { font-size: 10px; padding: 3px 10px; }
             .tabs { width: 100%; justify-content: center; }
             .tab-btn { padding: 8px 16px; font-size: 12px; }
+            .selector-btn { padding: 15px 30px; font-size: 18px; min-width: 150px; }
+            #welcomeSelector h2 { font-size: 22px; }
         }
         @media (max-width: 480px) {
             .header-left .subtitle { display: none; }
             .table-wrapper table { font-size: 11px; min-width: 600px; }
             .table-wrapper th, .table-wrapper td { padding: 7px 6px; }
+            .selector-btn { padding: 12px 20px; font-size: 16px; min-width: 120px; }
         }
     </style>
 </head>
@@ -455,7 +515,35 @@
         </div>
     </div>
 
-    <!-- CONTENIDO -->
+    <!-- SELECTOR INICIAL -->
+    <div id="welcomeSelector">
+        <div class="header" style="width:100%; margin-bottom:30px;">
+            <div class="header-left">
+                <i class="fas fa-chart-line logo"></i>
+                <div>
+                    <h1>Alpha Crypto <span style="font-weight:300;font-size:16px;background:none;-webkit-text-fill-color:#7a8ba3;">·</span> <span class="subtitle">Análisis Pro</span></h1>
+                    <div style="font-size:12px;color:#5a6b7e;margin-top:2px;">
+                        <i class="fas fa-bolt" style="color:#f0b90b;font-size:10px;"></i>
+                        30 años de experiencia
+                    </div>
+                </div>
+            </div>
+        </div>
+        <h2>🔍 Elige tu mercado</h2>
+        <p>Selecciona el tipo de análisis que deseas realizar</p>
+        <div class="selector-buttons">
+            <button class="selector-btn futures" id="btnFutures">
+                📊 Futuros
+                <span class="sub">Trading con apalancamiento · TP/SL dinámicos</span>
+            </button>
+            <button class="selector-btn spot" id="btnSpot">
+                💰 Spot
+                <span class="sub">Acumulación y hold · Zonas de compra</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- CONTENIDO PRINCIPAL (oculto inicialmente) -->
     <div class="container" id="mainContent" style="display:none;">
         <header class="header">
             <div class="header-left">
@@ -513,10 +601,9 @@
     <!-- ===== JAVASCRIPT ===== -->
     <script>
         // ============================================================
-        //  CONFIGURACIÓN
+        //  CONFIGURACIÓN (sin cambios)
         // ============================================================
         const CONFIG = {
-            // Futuros (sin cambios)
             FUTURES_BASE: 'https://fapi.binance.com',
             FUTURES_MIN_VOLUME: 50000000,
             FUTURES_SL_MULTIPLIER_NORMAL: 1.2,
@@ -524,10 +611,8 @@
             FUTURES_SL_MULTIPLIER_HIGH_VOL: 1.0,
             FUTURES_TP_MULTIPLIER_HIGH_VOL: 2.0,
             FUTURES_ENTRY_ADJUST: 0.995,
-            // Spot (acumulación)
             SPOT_BASE: 'https://api.binance.com',
             SPOT_MIN_VOLUME: 1000000,
-            // Comunes
             KLINES_LIMIT: 250,
             RSI_PERIOD: 14,
             SMA_VOL_PERIOD: 20,
@@ -641,7 +726,7 @@
         }
 
         // ============================================================
-        //  ANÁLISIS (diferenciado)
+        //  ANÁLISIS (sin cambios, idéntico a la versión anterior)
         // ============================================================
         function analyzeCoin(symbol, dailyKlines, fourHKlines, weeklyKlines, mode) {
             const dOpen = dailyKlines.map(c => parseFloat(c[1]));
@@ -662,7 +747,6 @@
                 return { signal: 'NEUTRAL', score: 0, reason: 'Datos insuficientes', effectiveness: 0 };
             }
 
-            // ---- CÁLCULOS COMUNES ----
             const dEma200 = calcEMA(dClose, CONFIG.EMA_TREND);
             const dEma20 = calcEMA(dClose, CONFIG.EMA_FAST);
             const dEma50 = calcEMA(dClose, CONFIG.EMA_SLOW);
@@ -705,12 +789,11 @@
             const wEma200v = wEma200[wIdx];
             const trendWeekly = (wPrice > wEma200v) ? 'BULLISH' : 'BEARISH';
 
-            // ---- CONFIRMACIÓN DE TENDENCIA ----
             if (trendDaily !== trend4h || trendDaily !== trendWeekly) {
                 return { signal: 'NEUTRAL', score: 0, reason: 'Tendencia no coincide', effectiveness: 0 };
             }
 
-            // ---- MODO FUTUROS (TRADING) ----
+            // ---- MODO FUTUROS ----
             if (mode === 'futures') {
                 let longScore = 0, shortScore = 0;
 
@@ -770,7 +853,6 @@
 
                 const effectiveness = clamp(score * 1.2, 0, 98);
 
-                // Cálculo de TP y SL (futuros)
                 let entryPrice = currentPrice;
                 let tp, sl;
                 const atr = (dHigh[lastIdx] - dLow[lastIdx]) * 0.5;
@@ -790,8 +872,8 @@
                 } else atrAvg = atrPct;
 
                 const highVolatility = (atrPct > 1.5 * atrAvg);
-                let slMult = highVolatility ? CONFIG.FUTURES_SL_MULTIPLIER_HIGH_VOL : CONFIG.FUTURES_SL_MULTIPLIER_NORMAL;
-                let tpMult = highVolatility ? CONFIG.FUTURES_TP_MULTIPLIER_HIGH_VOL : CONFIG.FUTURES_TP_MULTIPLIER_NORMAL;
+                let slMult = highVolatility ? 1.0 : 1.2;
+                let tpMult = highVolatility ? 2.0 : 2.5;
 
                 if (signal === 'LONG') {
                     sl = currentPrice * (1 - atrPct * slMult);
@@ -810,52 +892,37 @@
             }
 
             // ---- MODO SPOT (ACUMULACIÓN) ----
-            // Solo evaluamos condiciones de acumulación (sin TP/SL)
             let accumulationScore = 0;
 
-            // 1. Tendencia diaria alcista (muy importante)
             if (trendDaily === 'BULLISH') accumulationScore += 20;
-
-            // 2. Tendencia semanal alcista (confirmación de fondo)
             if (trendWeekly === 'BULLISH') accumulationScore += 15;
-
-            // 3. RSI bajo (zona de sobreventa o cercana)
             if (rsi !== null && rsi <= 45) accumulationScore += 15;
             else if (rsi !== null && rsi <= 55) accumulationScore += 8;
-
-            // 4. Volumen > SMA20 (interés de compra)
             if (vol > volSma) accumulationScore += 10;
-
-            // 5. Vela verde (cierre > apertura)
             if (dailyCandleGreen) accumulationScore += 5;
 
-            // 6. Precio cerca de la EMA 200 (distancia < 10%)
             const distanceToEma200 = Math.abs((currentPrice - ema200) / currentPrice) * 100;
             if (distanceToEma200 < 10) accumulationScore += 15;
             else if (distanceToEma200 < 20) accumulationScore += 8;
 
-            // 7. Cerca de soporte (precio cerca del mínimo de 20 días)
             const min20 = Math.min(...dClose.slice(-20));
             const distanceToMin20 = Math.abs((currentPrice - min20) / currentPrice) * 100;
             if (distanceToMin20 < 5) accumulationScore += 10;
 
-            // Si el score es suficiente, lo consideramos como señal de acumulación
             let signal = 'NEUTRAL';
             let score = accumulationScore;
             if (accumulationScore >= 50) {
                 signal = 'ACUMULACIÓN';
             }
 
-            // Efectividad = Score de acumulación (sin escalar)
             const effectiveness = clamp(accumulationScore, 0, 100);
 
-            // En spot no hay TP/SL ni precio ajustado
             return {
                 signal,
                 score: accumulationScore,
                 effectiveness,
                 currentPrice,
-                entryPrice: currentPrice, // simplemente el precio actual
+                entryPrice: currentPrice,
                 tp: null,
                 sl: null,
                 trendDaily,
@@ -950,12 +1017,149 @@
         }
 
         // ============================================================
-        //  MAIN
+        //  RENDERIZADO (sin cambios)
+        // ============================================================
+        function renderSignalsTable(results, mode) {
+            const container = document.getElementById('signalsTableContainer');
+            container.innerHTML = '';
+
+            const signals = results.filter(r => r.signal !== 'NEUTRAL' && !r.error);
+
+            if (signals.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <i class="fas fa-search"></i>
+                        <p>${mode === 'futures' ? 'No se encontraron señales claras en este momento.' : 'No se encontraron zonas de acumulación claras en este momento.'}</p>
+                        <p style="font-size:13px;color:#5a6b7e;margin-top:6px;">${mode === 'futures' ? 'Las condiciones de mercado no cumplen los criterios establecidos.' : 'Las condiciones de mercado no indican zonas de compra favorables.'}</p>
+                    </div>
+                `;
+                return;
+            }
+
+            let html = `<table><thead><tr>`;
+            if (mode === 'futures') {
+                html += `
+                    <th>#</th><th>Moneda</th><th>Señal</th><th>Precio Ideal</th><th>Precio Actual</th>
+                    <th>TP (Take Profit)</th><th>SL (Stop Loss)</th><th>SCORE</th><th>VOL RATIO</th>
+                    <th>Efectividad</th><th>Detalles</th>
+                `;
+            } else {
+                html += `
+                    <th>#</th><th>Moneda</th><th>Precio Actual</th><th>Tendencia</th><th>RSI</th>
+                    <th>Vol Ratio</th><th>Score Acumulación</th><th>Detalles</th>
+                `;
+            }
+            html += `</tr></thead><tbody>`;
+
+            signals.forEach((r, idx) => {
+                if (mode === 'futures') {
+                    const signalClass = r.signal === 'LONG' ? 'signal-long' : 'signal-short';
+                    const signalIcon = r.signal === 'LONG' ? '⬆' : '⬇';
+                    const priceColor = r.signal === 'LONG' ? 'price-green' : 'price-red';
+                    const eff = r.effectiveness || 0;
+                    const effColor = eff >= 70 ? '#2f8d46' : eff >= 50 ? '#f0b90b' : '#e74c3c';
+                    let volRatio = '—';
+                    if (r.volSma && r.volSma > 0) volRatio = (r.volume / r.volSma).toFixed(2) + 'x';
+                    const details = `EMA200: ${formatPrice(r.ema200)} | RSI: ${r.rsi?.toFixed(1) || '—'}`;
+
+                    html += `
+                        <tr>
+                            <td style="color:#5a6b7e;font-weight:600;">${idx+1}</td>
+                            <td><div class="coin-name">${r.name}<span class="symbol">${r.symbol}</span></div></td>
+                            <td><span class="${signalClass}">${signalIcon} ${r.signal}</span></td>
+                            <td class="price-num ${priceColor}">${formatPrice(r.entryPrice)}</td>
+                            <td class="price-num">${formatPrice(r.currentPrice)}</td>
+                            <td class="price-num price-green">${formatPrice(r.tp)}</td>
+                            <td class="price-num price-red">${formatPrice(r.sl)}</td>
+                            <td style="font-weight:700;color:#f0b90b;">${r.score || 0}</td>
+                            <td style="font-weight:500;color:#9aabb8;">${volRatio}</td>
+                            <td><div class="eff-bar"><div class="bar-bg"><div class="bar-fill" style="width:${eff}%;"></div></div><span class="eff-text" style="color:${effColor};">${eff.toFixed(0)}%</span></div></td>
+                            <td style="font-size:11px;color:#7a8ba3;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${details}"><i class="fas fa-info-circle" style="color:#5a6b7e;margin-right:4px;"></i> ${details}</td>
+                        </tr>
+                    `;
+                } else {
+                    const trendText = r.trendDaily === 'BULLISH' ? '📈 Alcista' : '📉 Bajista';
+                    const rsiVal = r.rsi?.toFixed(1) || '—';
+                    let volRatio = '—';
+                    if (r.volSma && r.volSma > 0) volRatio = (r.volume / r.volSma).toFixed(2) + 'x';
+                    const details = `EMA200: ${formatPrice(r.ema200)} | Vol: ${volRatio}`;
+
+                    html += `
+                        <tr>
+                            <td style="color:#5a6b7e;font-weight:600;">${idx+1}</td>
+                            <td><div class="coin-name">${r.name}<span class="symbol">${r.symbol}</span></div></td>
+                            <td class="price-num">${formatPrice(r.currentPrice)}</td>
+                            <td>${trendText}</td>
+                            <td>${rsiVal}</td>
+                            <td style="font-weight:500;color:#9aabb8;">${volRatio}</td>
+                            <td style="font-weight:700;color:#2f8d46;">${r.score || 0}</td>
+                            <td style="font-size:11px;color:#7a8ba3;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${details}"><i class="fas fa-info-circle" style="color:#5a6b7e;margin-right:4px;"></i> ${details}</td>
+                        </tr>
+                    `;
+                }
+            });
+
+            html += `</tbody></table>`;
+            container.innerHTML = html;
+        }
+
+        function renderTopTable(results) {
+            const container = document.getElementById('topTableContainer');
+            container.innerHTML = '';
+
+            const sorted = [...results].sort((a, b) => b.quoteVolume - a.quoteVolume);
+
+            let html = `
+                <table>
+                    <thead>
+                        <tr>
+                            <th>#</th><th>Moneda</th><th>Precio (USDT)</th>
+                            <th>Variación 24h</th><th>Volumen 24h (USDT)</th>
+                            <th>Señal</th><th>Efect.</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+
+            sorted.forEach((r, idx) => {
+                const rankClass = idx === 0 ? 'rank-1' : idx === 1 ? 'rank-2' : idx === 2 ? 'rank-3' : '';
+                const signalClass = r.signal === 'LONG' ? 'signal-long' :
+                    r.signal === 'SHORT' ? 'signal-short' :
+                    r.signal === 'ACUMULACIÓN' ? 'signal-long' : 'signal-neutral';
+                const signalText = r.signal === 'NEUTRAL' ? '—' : r.signal;
+                const changeColor = r.priceChange >= 0 ? 'price-green' : 'price-red';
+                const eff = r.effectiveness || 0;
+
+                const volFormatted = r.quoteVolume >= 1e9 ? (r.quoteVolume / 1e9).toFixed(2) + 'B' :
+                    r.quoteVolume >= 1e6 ? (r.quoteVolume / 1e6).toFixed(2) + 'M' :
+                    r.quoteVolume >= 1e3 ? (r.quoteVolume / 1e3).toFixed(2) + 'K' :
+                    r.quoteVolume.toFixed(2);
+
+                html += `
+                    <tr>
+                        <td><span class="rank-num ${rankClass}">${idx+1}</span></td>
+                        <td><div class="coin-name">${r.name}<span class="symbol">${r.symbol}</span></div></td>
+                        <td class="price-num">${formatPrice(r.currentPrice)}</td>
+                        <td class="price-num ${changeColor}">${r.priceChange ? r.priceChange.toFixed(2) : '—'}%</td>
+                        <td style="font-weight:500;">${volFormatted}</td>
+                        <td><span class="${signalClass}">${signalText}</span></td>
+                        <td style="font-weight:600;color:${eff >= 70 ? '#2f8d46' : eff >= 50 ? '#f0b90b' : '#5a6b7e'};">${eff > 0 ? eff.toFixed(0)+'%' : '—'}</td>
+                    </tr>
+                `;
+            });
+
+            html += `</tbody></table>`;
+            container.innerHTML = html;
+        }
+
+        // ============================================================
+        //  FUNCIONES DE ANÁLISIS PRINCIPAL
         // ============================================================
         const progressFill = document.getElementById('progressFill');
         const progressSub = document.getElementById('progressSub');
         const loadingOverlay = document.getElementById('loadingOverlay');
         const mainContent = document.getElementById('mainContent');
+        const welcomeSelector = document.getElementById('welcomeSelector');
 
         function updateProgress(pct, msg) {
             progressFill.style.width = Math.min(pct, 100) + '%';
@@ -1095,151 +1299,37 @@
         }
 
         // ============================================================
-        //  RENDERIZADO (diferenciado)
+        //  EVENTOS DE SELECCIÓN Y PESTAÑAS
         // ============================================================
-        function renderSignalsTable(results, mode) {
-            const container = document.getElementById('signalsTableContainer');
-            container.innerHTML = '';
-
-            const signals = results.filter(r => r.signal !== 'NEUTRAL' && !r.error);
-
-            if (signals.length === 0) {
-                container.innerHTML = `
-                    <div class="empty-state">
-                        <i class="fas fa-search"></i>
-                        <p>${mode === 'futures' ? 'No se encontraron señales claras en este momento.' : 'No se encontraron zonas de acumulación claras en este momento.'}</p>
-                        <p style="font-size:13px;color:#5a6b7e;margin-top:6px;">${mode === 'futures' ? 'Las condiciones de mercado no cumplen los criterios establecidos.' : 'Las condiciones de mercado no indican zonas de compra favorables.'}</p>
-                    </div>
-                `;
-                return;
-            }
-
-            let html = `<table><thead><tr>`;
+        function selectMode(mode) {
+            welcomeSelector.style.display = 'none';
+            loadingOverlay.classList.remove('hidden');
+            mainContent.style.display = 'none';
+            document.getElementById('signalsTableContainer').innerHTML = '';
+            document.getElementById('topTableContainer').innerHTML = '';
+            // Activar pestaña correspondiente
+            document.querySelectorAll('.tab-btn').forEach(t => t.classList.remove('active'));
             if (mode === 'futures') {
-                html += `
-                    <th>#</th><th>Moneda</th><th>Señal</th><th>Precio Ideal</th><th>Precio Actual</th>
-                    <th>TP (Take Profit)</th><th>SL (Stop Loss)</th><th>SCORE</th><th>VOL RATIO</th>
-                    <th>Efectividad</th><th>Detalles</th>
-                `;
+                document.getElementById('tabFutures').classList.add('active');
             } else {
-                // Spot (Acumulación)
-                html += `
-                    <th>#</th><th>Moneda</th><th>Precio Actual</th><th>Tendencia</th><th>RSI</th>
-                    <th>Vol Ratio</th><th>Score Acumulación</th><th>Detalles</th>
-                `;
+                document.getElementById('tabSpot').classList.add('active');
             }
-            html += `</tr></thead><tbody>`;
-
-            signals.forEach((r, idx) => {
-                if (mode === 'futures') {
-                    const signalClass = r.signal === 'LONG' ? 'signal-long' : 'signal-short';
-                    const signalIcon = r.signal === 'LONG' ? '⬆' : '⬇';
-                    const priceColor = r.signal === 'LONG' ? 'price-green' : 'price-red';
-                    const eff = r.effectiveness || 0;
-                    const effColor = eff >= 70 ? '#2f8d46' : eff >= 50 ? '#f0b90b' : '#e74c3c';
-                    let volRatio = '—';
-                    if (r.volSma && r.volSma > 0) volRatio = (r.volume / r.volSma).toFixed(2) + 'x';
-                    const details = `EMA200: ${formatPrice(r.ema200)} | RSI: ${r.rsi?.toFixed(1) || '—'}`;
-
-                    html += `
-                        <tr>
-                            <td style="color:#5a6b7e;font-weight:600;">${idx+1}</td>
-                            <td><div class="coin-name">${r.name}<span class="symbol">${r.symbol}</span></div></td>
-                            <td><span class="${signalClass}">${signalIcon} ${r.signal}</span></td>
-                            <td class="price-num ${priceColor}">${formatPrice(r.entryPrice)}</td>
-                            <td class="price-num">${formatPrice(r.currentPrice)}</td>
-                            <td class="price-num price-green">${formatPrice(r.tp)}</td>
-                            <td class="price-num price-red">${formatPrice(r.sl)}</td>
-                            <td style="font-weight:700;color:#f0b90b;">${r.score || 0}</td>
-                            <td style="font-weight:500;color:#9aabb8;">${volRatio}</td>
-                            <td><div class="eff-bar"><div class="bar-bg"><div class="bar-fill" style="width:${eff}%;"></div></div><span class="eff-text" style="color:${effColor};">${eff.toFixed(0)}%</span></div></td>
-                            <td style="font-size:11px;color:#7a8ba3;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${details}"><i class="fas fa-info-circle" style="color:#5a6b7e;margin-right:4px;"></i> ${details}</td>
-                        </tr>
-                    `;
-                } else {
-                    // Spot (Acumulación)
-                    const trendText = r.trendDaily === 'BULLISH' ? '📈 Alcista' : '📉 Bajista';
-                    const rsiVal = r.rsi?.toFixed(1) || '—';
-                    let volRatio = '—';
-                    if (r.volSma && r.volSma > 0) volRatio = (r.volume / r.volSma).toFixed(2) + 'x';
-                    const details = `EMA200: ${formatPrice(r.ema200)} | Vol: ${volRatio}`;
-
-                    html += `
-                        <tr>
-                            <td style="color:#5a6b7e;font-weight:600;">${idx+1}</td>
-                            <td><div class="coin-name">${r.name}<span class="symbol">${r.symbol}</span></div></td>
-                            <td class="price-num">${formatPrice(r.currentPrice)}</td>
-                            <td>${trendText}</td>
-                            <td>${rsiVal}</td>
-                            <td style="font-weight:500;color:#9aabb8;">${volRatio}</td>
-                            <td style="font-weight:700;color:#2f8d46;">${r.score || 0}</td>
-                            <td style="font-size:11px;color:#7a8ba3;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${details}"><i class="fas fa-info-circle" style="color:#5a6b7e;margin-right:4px;"></i> ${details}</td>
-                        </tr>
-                    `;
-                }
-            });
-
-            html += `</tbody></table>`;
-            container.innerHTML = html;
+            currentMode = mode;
+            renderExecuted = false;
+            runAnalysis(mode);
         }
 
-        function renderTopTable(results) {
-            const container = document.getElementById('topTableContainer');
-            container.innerHTML = '';
-
-            const sorted = [...results].sort((a, b) => b.quoteVolume - a.quoteVolume);
-
-            let html = `
-                <table>
-                    <thead>
-                        <tr>
-                            <th>#</th><th>Moneda</th><th>Precio (USDT)</th>
-                            <th>Variación 24h</th><th>Volumen 24h (USDT)</th>
-                            <th>Señal</th><th>Efect.</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-            `;
-
-            sorted.forEach((r, idx) => {
-                const rankClass = idx === 0 ? 'rank-1' : idx === 1 ? 'rank-2' : idx === 2 ? 'rank-3' : '';
-                const signalClass = r.signal === 'LONG' ? 'signal-long' :
-                    r.signal === 'SHORT' ? 'signal-short' :
-                    r.signal === 'ACUMULACIÓN' ? 'signal-long' : 'signal-neutral';
-                const signalText = r.signal === 'NEUTRAL' ? '—' : r.signal;
-                const changeColor = r.priceChange >= 0 ? 'price-green' : 'price-red';
-                const eff = r.effectiveness || 0;
-
-                const volFormatted = r.quoteVolume >= 1e9 ? (r.quoteVolume / 1e9).toFixed(2) + 'B' :
-                    r.quoteVolume >= 1e6 ? (r.quoteVolume / 1e6).toFixed(2) + 'M' :
-                    r.quoteVolume >= 1e3 ? (r.quoteVolume / 1e3).toFixed(2) + 'K' :
-                    r.quoteVolume.toFixed(2);
-
-                html += `
-                    <tr>
-                        <td><span class="rank-num ${rankClass}">${idx+1}</span></td>
-                        <td><div class="coin-name">${r.name}<span class="symbol">${r.symbol}</span></div></td>
-                        <td class="price-num">${formatPrice(r.currentPrice)}</td>
-                        <td class="price-num ${changeColor}">${r.priceChange ? r.priceChange.toFixed(2) : '—'}%</td>
-                        <td style="font-weight:500;">${volFormatted}</td>
-                        <td><span class="${signalClass}">${signalText}</span></td>
-                        <td style="font-weight:600;color:${eff >= 70 ? '#2f8d46' : eff >= 50 ? '#f0b90b' : '#5a6b7e'};">${eff > 0 ? eff.toFixed(0)+'%' : '—'}</td>
-                    </tr>
-                `;
-            });
-
-            html += `</tbody></table>`;
-            container.innerHTML = html;
-        }
-
-        // ============================================================
-        //  EVENTOS DE PESTAÑAS
-        // ============================================================
         document.addEventListener('DOMContentLoaded', () => {
+            // Botones del selector inicial
+            document.getElementById('btnFutures').addEventListener('click', () => selectMode('futures'));
+            document.getElementById('btnSpot').addEventListener('click', () => selectMode('spot'));
+
+            // Pestañas (cambiar de modo después de la selección inicial)
             const tabFutures = document.getElementById('tabFutures');
             const tabSpot = document.getElementById('tabSpot');
 
             function switchTab(mode) {
+                if (welcomeSelector.style.display !== 'none') return; // Si no se ha seleccionado nada, ignorar
                 currentMode = mode;
                 document.querySelectorAll('.tab-btn').forEach(t => t.classList.remove('active'));
                 if (mode === 'futures') tabFutures.classList.add('active');
@@ -1259,12 +1349,12 @@
                 if (currentMode !== 'spot') switchTab('spot');
             });
 
-            runAnalysis('futures');
+            // Inicialmente, mostrar el selector, no ejecutar análisis automático
         });
 
-        console.log('🔍 Alpha Crypto Analyzer v12.0 - Spot enfocado en ACUMULACIÓN (sin TP/SL)');
-        console.log('📊 Spot: Identifica zonas de acumulación basadas en tendencia, RSI, volumen y proximidad a soportes.');
-        console.log('📊 Futuros: sin cambios (Long/Short con TP/SL).');
+        console.log('🔍 Alpha Crypto Analyzer v13.0 - Selector inicial de mercado');
+        console.log('📊 Futuros: Trading con TP/SL dinámicos.');
+        console.log('📊 Spot: Zonas de acumulación para hold (sin TP/SL).');
     </script>
 </body>
 </html>
