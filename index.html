@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Alpha Crypto - Futuros & Spot</title>
+    <title>222 Alpha Crypto - Futuros & Spot</title>
     <style>
         /* ===== RESET Y BASE ===== */
         * {
@@ -202,7 +202,7 @@
             background: #3bb05c;
         }
 
-        /* ===== LOADING ===== */
+        /* ===== LOADING OVERLAY (oculto por defecto) ===== */
         #loadingOverlay {
             position: fixed;
             top: 0;
@@ -219,6 +219,7 @@
             transition: opacity 0.6s ease;
         }
         #loadingOverlay.hidden {
+            display: none;
             opacity: 0;
             pointer-events: none;
         }
@@ -501,8 +502,8 @@
 </head>
 <body>
 
-    <!-- LOADING -->
-    <div id="loadingOverlay">
+    <!-- LOADING OVERLAY (oculto por defecto) -->
+    <div id="loadingOverlay" class="hidden">
         <div class="loading-box">
             <div class="spinner"></div>
             <div class="analyzing-text">
@@ -543,7 +544,7 @@
         </div>
     </div>
 
-    <!-- CONTENIDO PRINCIPAL -->
+    <!-- CONTENIDO PRINCIPAL (oculto inicialmente) -->
     <div class="container" id="mainContent" style="display:none;">
         <header class="header">
             <div class="header-left">
@@ -604,7 +605,6 @@
         //  CONFIGURACIÓN (con proxy CORS y timeout)
         // ============================================================
         const CONFIG = {
-            // PROXY CORS (alternativo a api.allorigins.win)
             CORS_PROXY: 'https://corsproxy.io/?',
             FUTURES_BASE: 'https://fapi.binance.com',
             SPOT_BASE: 'https://api.binance.com',
@@ -623,7 +623,7 @@
             EMA_TREND: 200,
             MIN_SIGNAL_SCORE: 45,
             REQUEST_DELAY_MS: 60,
-            FETCH_TIMEOUT: 15000, // 15 segundos de timeout
+            FETCH_TIMEOUT: 15000,
         };
 
         // ============================================================
@@ -1320,11 +1320,15 @@
         //  EVENTOS DE SELECCIÓN Y PESTAÑAS
         // ============================================================
         function selectMode(mode) {
+            // Ocultar selector
             welcomeSelector.style.display = 'none';
+            // Mostrar overlay de carga
             loadingOverlay.classList.remove('hidden');
+            // Ocultar contenido principal hasta que termine el análisis
             mainContent.style.display = 'none';
             document.getElementById('signalsTableContainer').innerHTML = '';
             document.getElementById('topTableContainer').innerHTML = '';
+            // Activar pestaña correspondiente
             document.querySelectorAll('.tab-btn').forEach(t => t.classList.remove('active'));
             if (mode === 'futures') {
                 document.getElementById('tabFutures').classList.add('active');
@@ -1344,7 +1348,7 @@
             const tabSpot = document.getElementById('tabSpot');
 
             function switchTab(mode) {
-                if (welcomeSelector.style.display !== 'none') return;
+                if (welcomeSelector.style.display !== 'none') return; // Si no se ha seleccionado, ignorar
                 currentMode = mode;
                 document.querySelectorAll('.tab-btn').forEach(t => t.classList.remove('active'));
                 if (mode === 'futures') tabFutures.classList.add('active');
@@ -1365,7 +1369,7 @@
             });
         });
 
-        console.log('🔍 Alpha Crypto Analyzer v15.0 - Proxy CORS con timeout y manejo de errores');
+        console.log('🔍 Alpha Crypto Analyzer v16.0 - Overlay oculto al inicio, análisis solo bajo demanda');
         console.log('📊 Futuros: datos reales de fapi.binance.com a través de proxy, filtro ≥50M.');
         console.log('📊 Spot: datos de api.binance.com, filtro ≥1M.');
     </script>
