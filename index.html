@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>11 Alpha Crypto - Futuros & Spot (Proxy CORS)</title>
+    <title>Alpha Crypto - Futuros & Spot</title>
     <style>
         /* ===== RESET Y BASE ===== */
         * {
@@ -601,19 +601,20 @@
     <!-- ===== JAVASCRIPT ===== -->
     <script>
         // ============================================================
-        //  CONFIGURACIÓN (CON PROXY CORS)
+        //  CONFIGURACIÓN (con proxy CORS y timeout)
         // ============================================================
         const CONFIG = {
-            CORS_PROXY: 'https://api.allorigins.win/raw?url=',
+            // PROXY CORS (alternativo a api.allorigins.win)
+            CORS_PROXY: 'https://corsproxy.io/?',
             FUTURES_BASE: 'https://fapi.binance.com',
+            SPOT_BASE: 'https://api.binance.com',
             FUTURES_MIN_VOLUME: 50000000,
+            SPOT_MIN_VOLUME: 1000000,
             FUTURES_SL_MULTIPLIER_NORMAL: 1.2,
             FUTURES_TP_MULTIPLIER_NORMAL: 2.5,
             FUTURES_SL_MULTIPLIER_HIGH_VOL: 1.0,
             FUTURES_TP_MULTIPLIER_HIGH_VOL: 2.0,
             FUTURES_ENTRY_ADJUST: 0.995,
-            SPOT_BASE: 'https://api.binance.com',
-            SPOT_MIN_VOLUME: 1000000,
             KLINES_LIMIT: 250,
             RSI_PERIOD: 14,
             SMA_VOL_PERIOD: 20,
@@ -622,6 +623,7 @@
             EMA_TREND: 200,
             MIN_SIGNAL_SCORE: 45,
             REQUEST_DELAY_MS: 60,
+            FETCH_TIMEOUT: 15000, // 15 segundos de timeout
         };
 
         // ============================================================
@@ -646,6 +648,18 @@
         }
 
         function clamp(v, min, max) { return Math.max(min, Math.min(max, v)); }
+
+        // ============================================================
+        //  FETCH CON TIMEOUT
+        // ============================================================
+        function fetchWithTimeout(url, timeout = CONFIG.FETCH_TIMEOUT) {
+            return Promise.race([
+                fetch(url),
+                new Promise((_, reject) =>
+                    setTimeout(() => reject(new Error('Tiempo de espera agotado')), timeout)
+                )
+            ]);
+        }
 
         // ============================================================
         //  INDICADORES (comunes)
@@ -727,7 +741,7 @@
         }
 
         // ============================================================
-        //  ANÁLISIS DE UNA MONEDA (sin cambios)
+        //  ANÁLISIS (sin cambios)
         // ============================================================
         function analyzeCoin(symbol, dailyKlines, fourHKlines, weeklyKlines, mode) {
             const dOpen = dailyKlines.map(c => parseFloat(c[1]));
@@ -794,7 +808,6 @@
                 return { signal: 'NEUTRAL', score: 0, reason: 'Tendencia no coincide', effectiveness: 0 };
             }
 
-            // ---- MODO FUTUROS ----
             if (mode === 'futures') {
                 let longScore = 0, shortScore = 0;
 
@@ -938,12 +951,12 @@
         }
 
         // ============================================================
-        //  API FUTUROS (CON PROXY CORS)
+        //  API PARA FUTUROS (con proxy CORS y timeout)
         // ============================================================
         async function fetchFuturesKlines(symbol, interval, limit = CONFIG.KLINES_LIMIT) {
             const rawUrl = `${CONFIG.FUTURES_BASE}/fapi/v1/klines?symbol=${symbol}&interval=${interval}&limit=${limit}`;
             const url = `${CONFIG.CORS_PROXY}${encodeURIComponent(rawUrl)}`;
-            const resp = await fetch(url);
+            const resp = await fetchWithTimeout(url);
             if (!resp.ok) throw new Error(`Error ${resp.status} en klines ${symbol} ${interval}`);
             return resp.json();
         }
@@ -951,7 +964,7 @@
         async function fetchFuturesTickers() {
             const rawUrl = `${CONFIG.FUTURES_BASE}/fapi/v1/ticker/24hr`;
             const url = `${CONFIG.CORS_PROXY}${encodeURIComponent(rawUrl)}`;
-            const resp = await fetch(url);
+            const resp = await fetchWithTimeout(url);
             if (!resp.ok) throw new Error(`Error ${resp.status} al obtener tickers de futuros`);
             return resp.json();
         }
@@ -959,7 +972,7 @@
         async function fetchFuturesSymbols() {
             const rawUrl = `${CONFIG.FUTURES_BASE}/fapi/v1/exchangeInfo`;
             const url = `${CONFIG.CORS_PROXY}${encodeURIComponent(rawUrl)}`;
-            const resp = await fetch(url);
+            const resp = await fetchWithTimeout(url);
             if (!resp.ok) throw new Error(`Error ${resp.status} al obtener exchangeInfo de futuros`);
             const data = await resp.json();
             return data.symbols
@@ -968,7 +981,7 @@
         }
 
         // ============================================================
-        //  API SPOT (SIN PROXY)
+        //  API PARA SPOT (sin proxy, funciona desde file://)
         // ============================================================
         async function fetchSpotKlines(symbol, interval, limit = CONFIG.KLINES_LIMIT) {
             const url = `${CONFIG.SPOT_BASE}/api/v3/klines?symbol=${symbol}&interval=${interval}&limit=${limit}`;
@@ -1291,15 +1304,15 @@
             } catch (err) {
                 console.error('Error en el análisis:', err);
                 progressSub.textContent = '⚠️ Error: ' + err.message;
+                loadingOverlay.classList.add('hidden');
+                mainContent.style.display = 'block';
                 document.getElementById('signalsTableContainer').innerHTML = `
                     <div class="empty-state">
                         <i class="fas fa-exclamation-triangle"></i>
                         <p>Error al cargar los datos: ${err.message}</p>
-                        <p style="font-size:13px;margin-top:8px;color:#5a6b7e;">Por favor, recarga la página o intenta más tarde.</p>
+                        <p style="font-size:13px;color:#5a6b7e;margin-top:8px;">Por favor, recarga la página o intenta más tarde.<br>Si el problema persiste, es posible que el proxy CORS esté bloqueado. Prueba con otro proxy o despliega la web en un servidor HTTPS.</p>
                     </div>
                 `;
-                loadingOverlay.classList.add('hidden');
-                mainContent.style.display = 'block';
             }
         }
 
@@ -1352,9 +1365,9 @@
             });
         });
 
-        console.log('🔍 Alpha Crypto Analyzer v15.0 - Proxy CORS integrado (sin listas estáticas)');
-        console.log('📊 Futuros: API real de fapi.binance.com a través de proxy, volumen ≥50M.');
-        console.log('📊 Spot: API de api.binance.com directa, volumen ≥1M.');
+        console.log('🔍 Alpha Crypto Analyzer v15.0 - Proxy CORS con timeout y manejo de errores');
+        console.log('📊 Futuros: datos reales de fapi.binance.com a través de proxy, filtro ≥50M.');
+        console.log('📊 Spot: datos de api.binance.com, filtro ≥1M.');
     </script>
 </body>
 </html>
