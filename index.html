@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>🔍 111 Filtro Anti-Meme - Spot Binance</title>
+    <title>🛡️ Filtro Anti-Meme - Spot Binance (v2)</title>
     <style>
         * {
             margin: 0;
@@ -58,13 +58,13 @@
             font-weight: 500;
             letter-spacing: 0.3px;
         }
-        .control-group input[type="number"] {
+        .control-group input[type="number"], .control-group input[type="text"] {
             background: #0b0e11;
             border: 1px solid #2b3139;
             color: #fff;
             padding: 8px 12px;
             border-radius: 8px;
-            width: 140px;
+            width: 150px;
             font-size: 0.9rem;
         }
         .control-group input[type="checkbox"] {
@@ -147,6 +147,18 @@
             padding: 16px 18px;
             border-bottom: 2px solid #2b3139;
             white-space: nowrap;
+            cursor: pointer;
+            user-select: none;
+            transition: background 0.2s;
+        }
+        th:hover {
+            background: #2b3139;
+            color: #f0b90b;
+        }
+        th span.sort-indicator {
+            font-size: 0.75rem;
+            margin-left: 5px;
+            color: #f0b90b;
         }
         td {
             padding: 14px 18px;
@@ -189,7 +201,7 @@
             padding: 50px;
             color: #848e9c;
         }
-        @media (max-width: 900px) {
+        @media (max-width: 1100px) {
             .controls {
                 flex-direction: column;
                 align-items: stretch;
@@ -201,21 +213,21 @@
             .control-group {
                 justify-content: space-between;
             }
-            .control-group input[type="number"] {
-                width: 120px;
+            .control-group input[type="number"], .control-group input[type="text"] {
+                width: 140px;
             }
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>🛡️ Anti-Meme Spot Scanner</h1>
-        <p class="subtitle">Conexión directa a Binance · Filtrado avanzado con persistencia local</p>
+        <h1>🛡️ Anti-Meme Spot Scanner v2</h1>
+        <p class="subtitle">Conexión directa a Binance · Búsqueda activa, formato numérico financiero y ordenamiento cíclico</p>
 
         <div class="controls">
             <div class="control-group">
                 <label>💰 Vol. Mín (USDT)</label>
-                <input type="number" id="minVolume" value="5000000" step="100000">
+                <input type="number" id="minVolume" value="10000000" step="500000">
             </div>
             <div class="control-group">
                 <label>💲 Precio Mín</label>
@@ -226,7 +238,11 @@
                 <input type="number" id="minTrades" value="1000" step="100">
             </div>
             <div class="control-group">
-                <label>🚫 Filtrar por nombre Meme</label>
+                <label>🔍 Búsqueda Activa</label>
+                <input type="text" id="searchFilter" placeholder="Ej. BTC, ETH...">
+            </div>
+            <div class="control-group">
+                <label>🚫 Excluir Memes</label>
                 <input type="checkbox" id="excludeMemes" checked>
             </div>
             
@@ -255,43 +271,69 @@
         (function() {
             // ----- VALORES RECOMENDADOS ORIGINALES -----
             const RECOMMENDED_VALUES = {
-                minVolume: 5000000,
+                minVolume: 10000000,
                 minPrice: 0.001,
                 minTrades: 1000,
-                excludeMemes: true
+                excludeMemes: true,
+                searchFilter: ''
             };
 
             // ----- LISTA NEGRA ANTI-MEME -----
             const MEME_BLACKLIST = /\b(INU|SHIB|DOGE|PEPE|FLOKI|BONK|WOJAK|ELON|MOON|SAFE|KISHU|AKITA|TOSHI|BRETT|MOG|PONKE|BABY|HARRY|TRUMP|BIDEN|NEIRO|MEW|MYRO|CAT(?!.*HER)|DOG(?!.*E)|SAMO|LADYS|COQ|TURBO|ANDY|WIF|GIGA|MAGA|POPCAT|BOME|SLERF|DUCK|GOAT|PNUT|CHILL|SPX|SUNDOG)\b/i;
 
+            // ----- ESTADO GLOBAL DE DATOS Y ORDENAMIENTO -----
+            let rawMasterData = [];
+            let currentSortColumn = 'volume';
+            let currentSortDirection = 'desc'; // 'asc', 'desc', o 'none'
+
             // ----- ELEMENTOS DOM -----
             const minVolumeInput = document.getElementById('minVolume');
             const minPriceInput = document.getElementById('minPrice');
             const minTradesInput = document.getElementById('minTrades');
+            const searchFilterInput = document.getElementById('searchFilter');
             const excludeMemesCheck = document.getElementById('excludeMemes');
             const recommendedBtn = document.getElementById('recommendedBtn');
             const refreshBtn = document.getElementById('refreshBtn');
             const tableContainer = document.getElementById('tableContainer');
             const countDisplay = document.getElementById('countDisplay');
 
-            // ----- CARGAR VALORES DESDE LOCALSTORAGE O RECOMENDADOS -----
+            // ----- FORMATEADOR NUMÉRICO (XXX.XXX,XX) -----
+            function formatNumber(num, decimals = 2) {
+                if (isNaN(num) || num === null) return '0,00';
+                
+                // Redondear a los decimales requeridos
+                const fixed = num.toFixed(decimals);
+                const parts = fixed.split('.');
+                let integerPart = parts[0];
+                const decimalPart = parts[1] || '';
+
+                // Agregar puntos como separadores de miles
+                integerPart = integerPart.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+
+                return decimals > 0 ? `${integerPart},${decimalPart}` : integerPart;
+            }
+
+            // ----- CARGAR CONFIGURACIÓN DESDE LOCALSTORAGE -----
             function loadSavedSettings() {
                 const savedVolume = localStorage.getItem('scan_minVolume');
                 const savedPrice = localStorage.getItem('scan_minPrice');
                 const savedTrades = localStorage.getItem('scan_minTrades');
                 const savedExclude = localStorage.getItem('scan_excludeMemes');
+                const savedSearch = localStorage.getItem('scan_searchFilter');
 
                 minVolumeInput.value = savedVolume !== null ? savedVolume : RECOMMENDED_VALUES.minVolume;
                 minPriceInput.value = savedPrice !== null ? savedPrice : RECOMMENDED_VALUES.minPrice;
                 minTradesInput.value = savedTrades !== null ? savedTrades : RECOMMENDED_VALUES.minTrades;
+                searchFilterInput.value = savedSearch !== null ? savedSearch : RECOMMENDED_VALUES.searchFilter;
                 excludeMemesCheck.checked = savedExclude !== null ? savedExclude === 'true' : RECOMMENDED_VALUES.excludeMemes;
             }
 
-            // ----- GUARDAR VALORES EN LOCALSTORAGE -----
+            // ----- GUARDAR CONFIGURACIÓN EN LOCALSTORAGE -----
             function saveSettings() {
                 localStorage.setItem('scan_minVolume', minVolumeInput.value);
                 localStorage.setItem('scan_minPrice', minPriceInput.value);
                 localStorage.setItem('scan_minTrades', minTradesInput.value);
+                localStorage.setItem('scan_searchFilter', searchFilterInput.value);
                 localStorage.setItem('scan_excludeMemes', excludeMemesCheck.checked);
             }
 
@@ -300,19 +342,21 @@
                 minVolumeInput.value = RECOMMENDED_VALUES.minVolume;
                 minPriceInput.value = RECOMMENDED_VALUES.minPrice;
                 minTradesInput.value = RECOMMENDED_VALUES.minTrades;
+                searchFilterInput.value = RECOMMENDED_VALUES.searchFilter;
                 excludeMemesCheck.checked = RECOMMENDED_VALUES.excludeMemes;
 
-                // Limpiar localStorage y actualizar escaneo
+                // Limpiar localStorage
                 localStorage.removeItem('scan_minVolume');
                 localStorage.removeItem('scan_minPrice');
                 localStorage.removeItem('scan_minTrades');
+                localStorage.removeItem('scan_searchFilter');
                 localStorage.removeItem('scan_excludeMemes');
 
-                fetchAndFilter();
+                processAndRender();
             }
 
-            // ----- FUNCIÓN PRINCIPAL DE ANÁLISIS -----
-            async function fetchAndFilter() {
+            // ----- DESCARGAR DATOS DESDE BINANCE -----
+            async function fetchFromBinance() {
                 refreshBtn.disabled = true;
                 refreshBtn.textContent = '⏳ Cargando...';
                 tableContainer.innerHTML = `
@@ -341,40 +385,21 @@
                     const tickerMap = {};
                     tickerData.forEach(t => { tickerMap[t.symbol] = t; });
 
-                    const minVolume = parseFloat(minVolumeInput.value) || 0;
-                    const minPrice = parseFloat(minPriceInput.value) || 0;
-                    const minTrades = parseInt(minTradesInput.value) || 0;
-                    const excludeMemes = excludeMemesCheck.checked;
-
-                    const results = [];
+                    rawMasterData = [];
                     for (const symbol of usdtSymbols) {
                         const t = tickerMap[symbol];
                         if (!t) continue;
 
-                        const volume = parseFloat(t.quoteVolume);
-                        const price = parseFloat(t.lastPrice);
-                        const trades = parseInt(t.count);
-                        const change = parseFloat(t.priceChangePercent);
-
-                        if (volume < minVolume) continue;
-                        if (price < minPrice) continue;
-                        if (trades < minTrades) continue;
-
-                        if (excludeMemes && MEME_BLACKLIST.test(symbol)) {
-                            continue;
-                        }
-
-                        results.push({
+                        rawMasterData.push({
                             symbol,
-                            price,
-                            volume,
-                            trades,
-                            change
+                            price: parseFloat(t.lastPrice),
+                            volume: parseFloat(t.quoteVolume),
+                            trades: parseInt(t.count),
+                            change: parseFloat(t.priceChangePercent)
                         });
                     }
 
-                    results.sort((a, b) => b.volume - a.volume);
-                    renderTable(results, usdtSymbols.length);
+                    processAndRender();
 
                 } catch (error) {
                     console.error(error);
@@ -391,7 +416,44 @@
                 }
             }
 
-            // ----- RENDERIZADO DE TABLA -----
+            // ----- FILTRAR Y ORDENAR DATOS EN MEMORIA -----
+            function processAndRender() {
+                const minVolume = parseFloat(minVolumeInput.value) || 0;
+                const minPrice = parseFloat(minPriceInput.value) || 0;
+                const minTrades = parseInt(minTradesInput.value) || 0;
+                const excludeMemes = excludeMemesCheck.checked;
+                const searchText = searchFilterInput.value.trim().toLowerCase();
+
+                let filtered = rawMasterData.filter(item => {
+                    if (item.volume < minVolume) return false;
+                    if (item.price < minPrice) return false;
+                    if (item.trades < minTrades) return false;
+                    if (excludeMemes && MEME_BLACKLIST.test(item.symbol)) return false;
+                    if (searchText && !item.symbol.toLowerCase().includes(searchText)) return false;
+                    return true;
+                });
+
+                // Aplicar Ordenamiento Cíclico
+                if (currentSortDirection !== 'none') {
+                    filtered.sort((a, b) => {
+                        let valA = a[currentSortColumn];
+                        let valB = b[currentSortColumn];
+
+                        if (typeof valA === 'string') {
+                            valA = valA.toLowerCase();
+                            valB = valB.toLowerCase();
+                        }
+
+                        if (valA < valB) return currentSortDirection === 'asc' ? -1 : 1;
+                        if (valA > valB) return currentSortDirection === 'asc' ? 1 : -1;
+                        return 0;
+                    });
+                }
+
+                renderTable(filtered, rawMasterData.length);
+            }
+
+            // ----- RENDERIZADO DE LA TABLA -----
             function renderTable(results, totalPairs) {
                 const count = results.length;
                 countDisplay.textContent = `✅ ${count} criptos pasan el filtro (de ${totalPairs} pares USDT totales)`;
@@ -399,23 +461,28 @@
                 if (count === 0) {
                     tableContainer.innerHTML = `
                         <div class="empty">
-                            <p style="font-size:1.2rem;">🔎 No se encontraron criptos que cumplan los filtros</p>
-                            <p style="color:#848e9c;">Prueba ajustando los parámetros o haciendo clic en "Recomendado".</p>
+                            <p style="font-size:1.2rem;">🔎 No se encontraron criptos que cumplan los filtros actuales</p>
+                            <p style="color:#848e9c; margin-top:5px;">Prueba ajustando los parámetros, limpiando la búsqueda activa o haciendo clic en "Recomendado".</p>
                         </div>
                     `;
                     return;
                 }
 
+                const getIndicator = (col) => {
+                    if (currentSortColumn !== col || currentSortDirection === 'none') return '';
+                    return `<span class="sort-indicator">${currentSortDirection === 'asc' ? '▲ (A-Z)' : '▼ (Z-A)'}</span>`;
+                };
+
                 let html = `
                     <table>
                         <thead>
                             <tr>
-                                <th>#</th>
-                                <th>Símbolo</th>
-                                <th>Precio (USDT)</th>
-                                <th>Volumen 24h (USDT)</th>
-                                <th>Cambio 24h %</th>
-                                <th>Nº Trades (24h)</th>
+                                <th style="width: 50px;">#</th>
+                                <th data-col="symbol">Símbolo ${getIndicator('symbol')}</th>
+                                <th data-col="price">Precio (USDT) ${getIndicator('price')}</th>
+                                <th data-col="volume">Volumen 24h (USDT) ${getIndicator('volume')}</th>
+                                <th data-col="change">Cambio 24h % ${getIndicator('change')}</th>
+                                <th data-col="trades">Nº Trades (24h) ${getIndicator('trades')}</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -424,12 +491,14 @@
                 results.forEach((item, index) => {
                     const changeClass = item.change >= 0 ? 'positive' : 'negative';
                     const changeSign = item.change >= 0 ? '+' : '';
-                    const formattedPrice = item.price < 0.0001 ? item.price.toFixed(8) : 
-                                           item.price < 0.01 ? item.price.toFixed(6) : 
-                                           item.price.toFixed(2);
-                    const formattedVolume = item.volume >= 1e6 ? (item.volume / 1e6).toFixed(2) + 'M' :
-                                            item.volume >= 1e3 ? (item.volume / 1e3).toFixed(1) + 'K' :
-                                            item.volume.toFixed(0);
+                    
+                    // Definición de decimales dinámicos según el precio
+                    const decimalsPrice = item.price < 0.0001 ? 8 : item.price < 0.01 ? 6 : 2;
+                    const formattedPrice = formatNumber(item.price, decimalsPrice);
+                    
+                    const formattedVolume = formatNumber(item.volume, 2);
+                    const formattedChange = formatNumber(item.change, 2);
+                    const formattedTrades = formatNumber(item.trades, 0);
 
                     html += `
                         <tr>
@@ -437,19 +506,45 @@
                             <td class="symbol">${item.symbol}</td>
                             <td>$${formattedPrice}</td>
                             <td>$${formattedVolume}</td>
-                            <td class="${changeClass}">${changeSign}${item.change.toFixed(2)}%</td>
-                            <td>${item.trades.toLocaleString()}</td>
+                            <td class="${changeClass}">${changeSign}${formattedChange}%</td>
+                            <td>${formattedTrades}</td>
                         </tr>
                     `;
                 });
 
                 html += `</tbody></table>`;
                 tableContainer.innerHTML = html;
+
+                // Añadir eventos de clic a las cabeceras para el ordenamiento cíclico
+                document.querySelectorAll('th[data-col]').forEach(th => {
+                    th.addEventListener('click', () => {
+                        const col = th.getAttribute('data-col');
+                        if (currentSortColumn === col) {
+                            if (currentSortDirection === 'desc') {
+                                currentSortDirection = 'asc';
+                            } else if (currentSortDirection === 'asc') {
+                                currentSortDirection = 'none';
+                            } else {
+                                currentSortDirection = 'desc';
+                            }
+                        } else {
+                            currentSortColumn = col;
+                            currentSortDirection = 'desc'; // Por defecto descendente al cambiar de columna
+                        }
+                        processAndRender();
+                    });
+                });
             }
 
-            // ----- EVENTOS -----
-            refreshBtn.addEventListener('click', fetchAndFilter);
+            // ----- EVENTOS DE ENTRADA Y CONTROLES -----
+            refreshBtn.addEventListener('click', fetchFromBinance);
             recommendedBtn.addEventListener('click', applyRecommended);
+
+            // Búsqueda activa instantánea por cada letra que se escriba
+            searchFilterInput.addEventListener('input', () => {
+                saveSettings();
+                processAndRender();
+            });
 
             const inputs = [minVolumeInput, minPriceInput, minTradesInput, excludeMemesCheck];
             let debounceTimer;
@@ -457,18 +552,18 @@
                 input.addEventListener('input', () => {
                     saveSettings();
                     clearTimeout(debounceTimer);
-                    debounceTimer = setTimeout(fetchAndFilter, 400);
+                    debounceTimer = setTimeout(processAndRender, 300);
                 });
                 input.addEventListener('change', () => {
                     saveSettings();
                     clearTimeout(debounceTimer);
-                    debounceTimer = setTimeout(fetchAndFilter, 400);
+                    debounceTimer = setTimeout(processAndRender, 300);
                 });
             });
 
             // ----- INICIALIZACIÓN -----
             loadSavedSettings();
-            fetchAndFilter();
+            fetchFromBinance();
         })();
     </script>
 </body>
