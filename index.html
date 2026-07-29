@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>🛡️ Spot Scanner - Confluencia Multitemporal (1d + 4h) con Gráfico Amplio</title>
+    <title>🛡️ 850 Spot Scanner - Confluencia Multitemporal (1d + 4h) con Gráfico Gigante</title>
     <style>
         * {
             margin: 0;
@@ -231,34 +231,35 @@
             font-weight: 700;
             font-size: 1.1rem;
         }
-        /* ----- PANEL INFERIOR TRADINGVIEW AMPLIADO Y PROFESIONAL ----- */
+        /* ----- PANEL INFERIOR TRADINGVIEW GIGANTE Y PROFESIONAL ----- */
         .chart-section {
             background: #1e2329;
             border-radius: 16px;
             border: 1px solid #2b3139;
-            padding: 20px;
-            margin-top: 20px;
-            display: none; /* Oculto por defecto hasta que el usuario haga clic voluntariamente */
+            padding: 25px;
+            margin-top: 25px;
+            display: none; /* Oculto por defecto hasta hacer clic voluntariamente */
         }
         .chart-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 15px;
-            padding-bottom: 10px;
+            margin-bottom: 20px;
+            padding-bottom: 12px;
             border-bottom: 1px solid #2b3139;
         }
         .chart-title {
-            font-size: 1.2rem;
+            font-size: 1.3rem;
             font-weight: 700;
             color: #f0b90b;
         }
         .tradingview-container {
             width: 100%;
-            height: 750px; /* Altura generosa de 750px para análisis técnico real y profesional */
-            border-radius: 10px;
+            height: 850px; /* Altura maximizada a 850px para análisis técnico profesional sin fatiga visual */
+            border-radius: 12px;
             overflow: hidden;
             background: #0b0e11;
+            border: 1px solid #2b3139;
         }
         @media (max-width: 1100px) {
             .controls {
@@ -282,7 +283,7 @@
                 align-items: stretch;
             }
             .tradingview-container {
-                height: 500px;
+                height: 550px;
             }
         }
     </style>
@@ -290,7 +291,7 @@
 <body>
     <div class="container">
         <h1>🛡️ Spot Scanner - Confluencia Multitemporal (1d + 4h)</h1>
-        <p class="subtitle">Conexión directa a Binance · Haz clic voluntariamente en cualquier cripto para abrir su gráfico profesional</p>
+        <p class="subtitle">Conexión directa a Binance · Haz clic en cualquier cripto para evaluar su gráfico técnico en formato gigante</p>
 
         <div class="controls">
             <div class="control-group">
@@ -347,7 +348,7 @@
 
         <div class="chart-section" id="chartSection">
             <div class="chart-header">
-                <div class="chart-title" id="chartTitle">📊 Gráfico Técnico Profesional - Binance Spot</div>
+                <div class="chart-title" id="chartTitle">📊 Análisis Técnico Profesional Spot - Binance</div>
             </div>
             <div class="tradingview-container" id="tradingview_widget"></div>
         </div>
@@ -392,7 +393,7 @@
             const chartTitleEl = document.getElementById('chartTitle');
             const chartSectionEl = document.getElementById('chartSection');
 
-            // ----- CARGAR TRADINGVIEW SOLO AL HACER CLIC VOLUNTARIAMENTE -----
+            // ----- CARGAR TRADINGVIEW GIGANTE SOLO AL HACER CLIC VOLUNTARIAMENTE -----
             function loadTradingViewChart(symbol) {
                 chartSectionEl.style.display = 'block'; // Mostrar el panel inferior al hacer clic
                 chartTitleEl.textContent = `📊 Análisis Técnico Profesional Spot: ${symbol} (Binance)`;
@@ -722,7 +723,7 @@
                     html += `
                         <tr>
                             <td>${index + 1}</td>
-                            <td><span class="symbol" data-symbol="${item.symbol}" title="Haz clic para abrir gráfico amplio">${item.symbol}</span></td>
+                            <td><span class="symbol" data-symbol="${item.symbol}" title="Haz clic para abrir gráfico gigante">${item.symbol}</span></td>
                             <td>$${formattedPrice}</td>
                             <td>$${formattedVolume}</td>
                             <td class="${changeClass}">${changeSign}${formattedChange}%</td>
@@ -754,7 +755,7 @@
                     });
                 });
 
-                // Evento de clic voluntario en los símbolos para abrir el gráfico amplio
+                // Evento de clic voluntario en los símbolos para abrir el gráfico gigante
                 document.querySelectorAll('.symbol[data-symbol]').forEach(el => {
                     el.addEventListener('click', (e) => {
                         const symbol = e.target.getAttribute('data-symbol');
