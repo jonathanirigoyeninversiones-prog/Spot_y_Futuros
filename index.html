@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>🛡️ Spot Scanner - Binance</title>
+    <title>🛡️ xxx Spot Scanner - Binance</title>
     <style>
         * {
             margin: 0;
@@ -64,8 +64,16 @@
             color: #fff;
             padding: 8px 12px;
             border-radius: 8px;
-            width: 150px;
+            width: 140px;
             font-size: 0.9rem;
+        }
+        .ema-row {
+            display: flex;
+            gap: 15px;
+            width: 100%;
+            padding-top: 10px;
+            border-top: 1px solid #2b3139;
+            flex-wrap: wrap;
         }
         .actions-right {
             display: flex;
@@ -114,7 +122,7 @@
             border-radius: 12px;
             margin-bottom: 20px;
             display: flex;
-            justify-content: space-between;
+            justify-content: flex-end;
             border-left: 4px solid #f0b90b;
             font-size: 0.95rem;
         }
@@ -210,13 +218,17 @@
             .control-group input[type="number"], .control-group input[type="text"] {
                 width: 140px;
             }
+            .ema-row {
+                flex-direction: column;
+                gap: 10px;
+            }
         }
     </style>
 </head>
 <body>
     <div class="container">
         <h1>🛡️ Spot Scanner - Binance</h1>
-        <p class="subtitle">Conexión directa a Binance · Búsqueda activa, formato numérico internacional y volumen simplificado (M/K)</p>
+        <p class="subtitle">Conexión directa a Binance · Búsqueda activa, formato numérico internacional y configuración de EMAs</p>
 
         <div class="controls">
             <div class="control-group">
@@ -240,10 +252,24 @@
                 <button class="btn-recommended" id="recommendedBtn" title="Restablecer valores recomendados">⭐ Recomendado</button>
                 <button class="btn-refresh" id="refreshBtn">🔁 Escanear</button>
             </div>
+
+            <div class="ema-row">
+                <div class="control-group">
+                    <label>📈 Ema 1 (Períodos)</label>
+                    <input type="number" id="ema1" value="50" step="1">
+                </div>
+                <div class="control-group">
+                    <label>📈 Ema 2 (Períodos)</label>
+                    <input type="number" id="ema2" value="100" step="1">
+                </div>
+                <div class="control-group">
+                    <label>📈 Ema 3 (Períodos)</label>
+                    <input type="number" id="ema3" value="200" step="1">
+                </div>
+            </div>
         </div>
 
         <div class="stats" id="statsBar">
-            <span>⏳ Cargando datos desde Binance...</span>
             <span id="countDisplay">0 encontrados</span>
         </div>
 
@@ -264,7 +290,10 @@
                 minVolume: 10000000,
                 minPrice: 0.001,
                 minTrades: 1000,
-                searchFilter: ''
+                searchFilter: '',
+                ema1: 50,
+                ema2: 100,
+                ema3: 200
             };
 
             // ----- ESTADO GLOBAL DE DATOS Y ORDENAMIENTO -----
@@ -277,6 +306,9 @@
             const minPriceInput = document.getElementById('minPrice');
             const minTradesInput = document.getElementById('minTrades');
             const searchFilterInput = document.getElementById('searchFilter');
+            const ema1Input = document.getElementById('ema1');
+            const ema2Input = document.getElementById('ema2');
+            const ema3Input = document.getElementById('ema3');
             const recommendedBtn = document.getElementById('recommendedBtn');
             const refreshBtn = document.getElementById('refreshBtn');
             const tableContainer = document.getElementById('tableContainer');
@@ -307,15 +339,13 @@
 
             // ----- CARGAR CONFIGURACIÓN DESDE LOCALSTORAGE -----
             function loadSavedSettings() {
-                const savedVolume = localStorage.getItem('scan_minVolume');
-                const savedPrice = localStorage.getItem('scan_minPrice');
-                const savedTrades = localStorage.getItem('scan_minTrades');
-                const savedSearch = localStorage.getItem('scan_searchFilter');
-
-                minVolumeInput.value = savedVolume !== null ? savedVolume : RECOMMENDED_VALUES.minVolume;
-                minPriceInput.value = savedPrice !== null ? savedPrice : RECOMMENDED_VALUES.minPrice;
-                minTradesInput.value = savedTrades !== null ? savedTrades : RECOMMENDED_VALUES.minTrades;
-                searchFilterInput.value = savedSearch !== null ? savedSearch : RECOMMENDED_VALUES.searchFilter;
+                minVolumeInput.value = localStorage.getItem('scan_minVolume') ?? RECOMMENDED_VALUES.minVolume;
+                minPriceInput.value = localStorage.getItem('scan_minPrice') ?? RECOMMENDED_VALUES.minPrice;
+                minTradesInput.value = localStorage.getItem('scan_minTrades') ?? RECOMMENDED_VALUES.minTrades;
+                searchFilterInput.value = localStorage.getItem('scan_searchFilter') ?? RECOMMENDED_VALUES.searchFilter;
+                ema1Input.value = localStorage.getItem('scan_ema1') ?? RECOMMENDED_VALUES.ema1;
+                ema2Input.value = localStorage.getItem('scan_ema2') ?? RECOMMENDED_VALUES.ema2;
+                ema3Input.value = localStorage.getItem('scan_ema3') ?? RECOMMENDED_VALUES.ema3;
             }
 
             // ----- GUARDAR CONFIGURACIÓN EN LOCALSTORAGE -----
@@ -324,6 +354,9 @@
                 localStorage.setItem('scan_minPrice', minPriceInput.value);
                 localStorage.setItem('scan_minTrades', minTradesInput.value);
                 localStorage.setItem('scan_searchFilter', searchFilterInput.value);
+                localStorage.setItem('scan_ema1', ema1Input.value);
+                localStorage.setItem('scan_ema2', ema2Input.value);
+                localStorage.setItem('scan_ema3', ema3Input.value);
             }
 
             // ----- RESTABLECER A VALORES RECOMENDADOS -----
@@ -332,11 +365,17 @@
                 minPriceInput.value = RECOMMENDED_VALUES.minPrice;
                 minTradesInput.value = RECOMMENDED_VALUES.minTrades;
                 searchFilterInput.value = RECOMMENDED_VALUES.searchFilter;
+                ema1Input.value = RECOMMENDED_VALUES.ema1;
+                ema2Input.value = RECOMMENDED_VALUES.ema2;
+                ema3Input.value = RECOMMENDED_VALUES.ema3;
 
                 localStorage.removeItem('scan_minVolume');
                 localStorage.removeItem('scan_minPrice');
                 localStorage.removeItem('scan_minTrades');
                 localStorage.removeItem('scan_searchFilter');
+                localStorage.removeItem('scan_ema1');
+                localStorage.removeItem('scan_ema2');
+                localStorage.removeItem('scan_ema3');
 
                 processAndRender();
             }
@@ -477,9 +516,7 @@
                     
                     const decimalsPrice = item.price < 0.0001 ? 8 : item.price < 0.01 ? 6 : 2;
                     const formattedPrice = formatNumber(item.price, decimalsPrice);
-                    
                     const formattedVolume = formatVolume(item.volume);
-                    
                     const formattedChange = formatNumber(item.change, 2);
                     const formattedTrades = formatNumber(item.trades, 0);
 
@@ -527,7 +564,7 @@
                 processAndRender();
             });
 
-            const inputs = [minVolumeInput, minPriceInput, minTradesInput];
+            const inputs = [minVolumeInput, minPriceInput, minTradesInput, ema1Input, ema2Input, ema3Input];
             let debounceTimer;
             inputs.forEach(input => {
                 input.addEventListener('input', () => {
