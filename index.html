@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>🛡️ 850 Spot Scanner - Confluencia Multitemporal (1d + 4h) con Gráfico Gigante</title>
+    <title>🛡️ 950 Spot Scanner - Confluencia Multitemporal (1d + 4h) con Gráfico Vertical Gigante</title>
     <style>
         * {
             margin: 0;
@@ -231,7 +231,7 @@
             font-weight: 700;
             font-size: 1.1rem;
         }
-        /* ----- PANEL INFERIOR TRADINGVIEW GIGANTE Y PROFESIONAL ----- */
+        /* ----- PANEL INFERIOR TRADINGVIEW VERTICAL GIGANTE ----- */
         .chart-section {
             background: #1e2329;
             border-radius: 16px;
@@ -255,7 +255,7 @@
         }
         .tradingview-container {
             width: 100%;
-            height: 850px; /* Altura maximizada a 850px para análisis técnico profesional sin fatiga visual */
+            height: 950px; /* Altura vertical imponente de 950px para un análisis técnico profesional y sin restricciones */
             border-radius: 12px;
             overflow: hidden;
             background: #0b0e11;
@@ -283,7 +283,7 @@
                 align-items: stretch;
             }
             .tradingview-container {
-                height: 550px;
+                height: 600px;
             }
         }
     </style>
@@ -291,7 +291,7 @@
 <body>
     <div class="container">
         <h1>🛡️ Spot Scanner - Confluencia Multitemporal (1d + 4h)</h1>
-        <p class="subtitle">Conexión directa a Binance · Haz clic en cualquier cripto para evaluar su gráfico técnico en formato gigante</p>
+        <p class="subtitle">Conexión directa a Binance · Haz clic en cualquier cripto para evaluar su gráfico en tamaño vertical gigante</p>
 
         <div class="controls">
             <div class="control-group">
@@ -393,7 +393,7 @@
             const chartTitleEl = document.getElementById('chartTitle');
             const chartSectionEl = document.getElementById('chartSection');
 
-            // ----- CARGAR TRADINGVIEW GIGANTE SOLO AL HACER CLIC VOLUNTARIAMENTE -----
+            // ----- CARGAR TRADINGVIEW VERTICAL GIGANTE SOLO AL HACER CLIC VOLUNTARIAMENTE -----
             function loadTradingViewChart(symbol) {
                 chartSectionEl.style.display = 'block'; // Mostrar el panel inferior al hacer clic
                 chartTitleEl.textContent = `📊 Análisis Técnico Profesional Spot: ${symbol} (Binance)`;
@@ -723,7 +723,7 @@
                     html += `
                         <tr>
                             <td>${index + 1}</td>
-                            <td><span class="symbol" data-symbol="${item.symbol}" title="Haz clic para abrir gráfico gigante">${item.symbol}</span></td>
+                            <td><span class="symbol" data-symbol="${item.symbol}" title="Haz clic para abrir gráfico vertical gigante">${item.symbol}</span></td>
                             <td>$${formattedPrice}</td>
                             <td>$${formattedVolume}</td>
                             <td class="${changeClass}">${changeSign}${formattedChange}%</td>
@@ -755,7 +755,7 @@
                     });
                 });
 
-                // Evento de clic voluntario en los símbolos para abrir el gráfico gigante
+                // Evento de clic voluntario en los símbolos para abrir el gráfico vertical gigante
                 document.querySelectorAll('.symbol[data-symbol]').forEach(el => {
                     el.addEventListener('click', (e) => {
                         const symbol = e.target.getAttribute('data-symbol');
