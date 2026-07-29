@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>🛡️ Spot Scanner - Confluencia Multitemporal (1d + 4h)</title>
+    <title>🛡️ Dark Spot Scanner - Confluencia Multitemporal (1d + 4h)</title>
     <style>
         * {
             margin: 0;
@@ -257,7 +257,7 @@
 <body>
     <div class="container">
         <h1>🛡️ Spot Scanner - Confluencia Multitemporal (1d + 4h)</h1>
-        <p class="subtitle">Conexión directa a Binance · Haz clic en cualquier cripto para abrir su gráfico de TradingView en una pestaña nueva</p>
+        <p class="subtitle">Conexión directa a Binance · Haz clic en cualquier cripto para abrir su gráfico en TradingView (Tema Oscuro)</p>
 
         <div class="controls">
             <div class="control-group">
@@ -654,7 +654,7 @@
                             <td>$${formattedPrice}</td>
                             <td>$${formattedVolume}</td>
                             <td class="${changeClass}">${changeSign}${formattedChange}%</td>
-                            <td>${formattedTrades}</td>
+                            <td>${~~formattedTrades}</td>
                         </tr>
                     `;
                 });
@@ -682,11 +682,11 @@
                     });
                 });
 
-                // Evento de clic en los símbolos para abrir TradingView en pestaña nueva
+                // Evento de clic en los símbolos para abrir TradingView en pestaña nueva con tema oscuro (fondo negro)
                 document.querySelectorAll('.symbol[data-symbol]').forEach(el => {
                     el.addEventListener('click', (e) => {
                         const symbol = e.target.getAttribute('data-symbol');
-                        const tvUrl = `https://www.tradingview.com/chart/?symbol=BINANCE:${symbol}`;
+                        const tvUrl = `https://www.tradingview.com/chart/?symbol=BINANCE:${symbol}&theme=dark`;
                         window.open(tvUrl, '_blank');
                     });
                 });
