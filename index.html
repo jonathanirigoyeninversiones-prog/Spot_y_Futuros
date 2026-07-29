@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>🛡️ cvcvcvcvc Spot Scanner - Confluencia 1d + 4h con TradingView</title>
+    <title>🛡️ Spot Scanner - Confluencia Multitemporal (1d + 4h) con Gráfico Amplio</title>
     <style>
         * {
             margin: 0;
@@ -231,13 +231,14 @@
             font-weight: 700;
             font-size: 1.1rem;
         }
-        /* ----- PANEL INFERIOR TRADINGVIEW ----- */
+        /* ----- PANEL INFERIOR TRADINGVIEW AMPLIADO Y PROFESIONAL ----- */
         .chart-section {
             background: #1e2329;
             border-radius: 16px;
             border: 1px solid #2b3139;
             padding: 20px;
             margin-top: 20px;
+            display: none; /* Oculto por defecto hasta que el usuario haga clic voluntariamente */
         }
         .chart-header {
             display: flex;
@@ -248,13 +249,13 @@
             border-bottom: 1px solid #2b3139;
         }
         .chart-title {
-            font-size: 1.1rem;
+            font-size: 1.2rem;
             font-weight: 700;
             color: #f0b90b;
         }
         .tradingview-container {
             width: 100%;
-            height: 550px;
+            height: 750px; /* Altura generosa de 750px para análisis técnico real y profesional */
             border-radius: 10px;
             overflow: hidden;
             background: #0b0e11;
@@ -280,13 +281,16 @@
                 gap: 10px;
                 align-items: stretch;
             }
+            .tradingview-container {
+                height: 500px;
+            }
         }
     </style>
 </head>
 <body>
     <div class="container">
         <h1>🛡️ Spot Scanner - Confluencia Multitemporal (1d + 4h)</h1>
-        <p class="subtitle">Conexión directa a Binance · Haz clic en cualquier cripto para ver su gráfico interactivo en TradingView</p>
+        <p class="subtitle">Conexión directa a Binance · Haz clic voluntariamente en cualquier cripto para abrir su gráfico profesional</p>
 
         <div class="controls">
             <div class="control-group">
@@ -343,7 +347,7 @@
 
         <div class="chart-section" id="chartSection">
             <div class="chart-header">
-                <div class="chart-title" id="chartTitle">📊 Gráfico Interactivo - Selecciona una cripto de la tabla</div>
+                <div class="chart-title" id="chartTitle">📊 Gráfico Técnico Profesional - Binance Spot</div>
             </div>
             <div class="tradingview-container" id="tradingview_widget"></div>
         </div>
@@ -386,10 +390,12 @@
             const countDisplay = document.getElementById('countDisplay');
             const candleTimerEl = document.getElementById('candleTimer');
             const chartTitleEl = document.getElementById('chartTitle');
+            const chartSectionEl = document.getElementById('chartSection');
 
-            // ----- INICIALIZAR TRADINGVIEW -----
+            // ----- CARGAR TRADINGVIEW SOLO AL HACER CLIC VOLUNTARIAMENTE -----
             function loadTradingViewChart(symbol) {
-                chartTitleEl.textContent = `📊 Gráfico Interactivo Spot: ${symbol} (Binance)`;
+                chartSectionEl.style.display = 'block'; // Mostrar el panel inferior al hacer clic
+                chartTitleEl.textContent = `📊 Análisis Técnico Profesional Spot: ${symbol} (Binance)`;
                 document.getElementById('tradingview_widget').innerHTML = '';
                 
                 try {
@@ -397,7 +403,7 @@
                         "width": "100%",
                         "height": "100%",
                         "symbol": `BINANCE:${symbol}`,
-                        "interval": "240", // Por defecto en temporalidad de 4 horas (4h)
+                        "interval": "240", // 4 horas por defecto para confluencia
                         "timezone": "Etc/UTC",
                         "theme": "dark",
                         "style": "1",
@@ -503,6 +509,7 @@
                 ema3Input.value = RECOMMENDED_VALUES.ema3;
 
                 localStorage.clear();
+                chartSectionEl.style.display = 'none'; // Ocultar gráfico al restablecer
                 fetchAndFilter();
             }
 
@@ -625,11 +632,6 @@
 
                     processAndRender();
 
-                    // Cargar por defecto la primera cripto encontrada en el gráfico si existe
-                    if (rawMasterData.length > 0) {
-                        loadTradingViewChart(rawMasterData[0].symbol);
-                    }
-
                 } catch (error) {
                     console.error(error);
                     tableContainer.innerHTML = `
@@ -720,7 +722,7 @@
                     html += `
                         <tr>
                             <td>${index + 1}</td>
-                            <td><span class="symbol" data-symbol="${item.symbol}" title="Haz clic para ver gráfico">${item.symbol}</span></td>
+                            <td><span class="symbol" data-symbol="${item.symbol}" title="Haz clic para abrir gráfico amplio">${item.symbol}</span></td>
                             <td>$${formattedPrice}</td>
                             <td>$${formattedVolume}</td>
                             <td class="${changeClass}">${changeSign}${formattedChange}%</td>
@@ -752,12 +754,12 @@
                     });
                 });
 
-                // Evento de clic en los símbolos para abrir el gráfico de TradingView
+                // Evento de clic voluntario en los símbolos para abrir el gráfico amplio
                 document.querySelectorAll('.symbol[data-symbol]').forEach(el => {
                     el.addEventListener('click', (e) => {
                         const symbol = e.target.getAttribute('data-symbol');
                         loadTradingViewChart(symbol);
-                        document.getElementById('chartSection').scrollIntoView({ behavior: 'smooth' });
+                        chartSectionEl.scrollIntoView({ behavior: 'smooth' });
                     });
                 });
             }
