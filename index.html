@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>🛡️ oo1 Filtro Anti-Meme - Spot Binance (v3)</title>
+    <title>🛡️ Spot Scanner - Binance</title>
     <style>
         * {
             margin: 0;
@@ -66,12 +66,6 @@
             border-radius: 8px;
             width: 150px;
             font-size: 0.9rem;
-        }
-        .control-group input[type="checkbox"] {
-            width: 18px;
-            height: 18px;
-            accent-color: #f0b90b;
-            cursor: pointer;
         }
         .actions-right {
             display: flex;
@@ -221,7 +215,7 @@
 </head>
 <body>
     <div class="container">
-        <h1>🛡️ Anti-Meme Spot Scanner v3</h1>
+        <h1>🛡️ Spot Scanner - Binance</h1>
         <p class="subtitle">Conexión directa a Binance · Búsqueda activa, formato numérico internacional y volumen simplificado (M/K)</p>
 
         <div class="controls">
@@ -240,10 +234,6 @@
             <div class="control-group">
                 <label>🔍 Búsqueda Activa</label>
                 <input type="text" id="searchFilter" placeholder="Ej. BTC, ETH...">
-            </div>
-            <div class="control-group">
-                <label>🚫 Excluir Memes</label>
-                <input type="checkbox" id="excludeMemes" checked>
             </div>
             
             <div class="actions-right">
@@ -274,12 +264,8 @@
                 minVolume: 10000000,
                 minPrice: 0.001,
                 minTrades: 1000,
-                excludeMemes: true,
                 searchFilter: ''
             };
-
-            // ----- LISTA NEGRA ANTI-MEME -----
-            const MEME_BLACKLIST = /\b(INU|SHIB|DOGE|PEPE|FLOKI|BONK|WOJAK|ELON|MOON|SAFE|KISHU|AKITA|TOSHI|BRETT|MOG|PONKE|BABY|HARRY|TRUMP|BIDEN|NEIRO|MEW|MYRO|CAT(?!.*HER)|DOG(?!.*E)|SAMO|LADYS|COQ|TURBO|ANDY|WIF|GIGA|MAGA|POPCAT|BOME|SLERF|DUCK|GOAT|PNUT|CHILL|SPX|SUNDOG)\b/i;
 
             // ----- ESTADO GLOBAL DE DATOS Y ORDENAMIENTO -----
             let rawMasterData = [];
@@ -291,7 +277,6 @@
             const minPriceInput = document.getElementById('minPrice');
             const minTradesInput = document.getElementById('minTrades');
             const searchFilterInput = document.getElementById('searchFilter');
-            const excludeMemesCheck = document.getElementById('excludeMemes');
             const recommendedBtn = document.getElementById('recommendedBtn');
             const refreshBtn = document.getElementById('refreshBtn');
             const tableContainer = document.getElementById('tableContainer');
@@ -325,14 +310,12 @@
                 const savedVolume = localStorage.getItem('scan_minVolume');
                 const savedPrice = localStorage.getItem('scan_minPrice');
                 const savedTrades = localStorage.getItem('scan_minTrades');
-                const savedExclude = localStorage.getItem('scan_excludeMemes');
                 const savedSearch = localStorage.getItem('scan_searchFilter');
 
                 minVolumeInput.value = savedVolume !== null ? savedVolume : RECOMMENDED_VALUES.minVolume;
                 minPriceInput.value = savedPrice !== null ? savedPrice : RECOMMENDED_VALUES.minPrice;
                 minTradesInput.value = savedTrades !== null ? savedTrades : RECOMMENDED_VALUES.minTrades;
                 searchFilterInput.value = savedSearch !== null ? savedSearch : RECOMMENDED_VALUES.searchFilter;
-                excludeMemesCheck.checked = savedExclude !== null ? savedExclude === 'true' : RECOMMENDED_VALUES.excludeMemes;
             }
 
             // ----- GUARDAR CONFIGURACIÓN EN LOCALSTORAGE -----
@@ -341,7 +324,6 @@
                 localStorage.setItem('scan_minPrice', minPriceInput.value);
                 localStorage.setItem('scan_minTrades', minTradesInput.value);
                 localStorage.setItem('scan_searchFilter', searchFilterInput.value);
-                localStorage.setItem('scan_excludeMemes', excludeMemesCheck.checked);
             }
 
             // ----- RESTABLECER A VALORES RECOMENDADOS -----
@@ -350,13 +332,11 @@
                 minPriceInput.value = RECOMMENDED_VALUES.minPrice;
                 minTradesInput.value = RECOMMENDED_VALUES.minTrades;
                 searchFilterInput.value = RECOMMENDED_VALUES.searchFilter;
-                excludeMemesCheck.checked = RECOMMENDED_VALUES.excludeMemes;
 
                 localStorage.removeItem('scan_minVolume');
                 localStorage.removeItem('scan_minPrice');
                 localStorage.removeItem('scan_minTrades');
                 localStorage.removeItem('scan_searchFilter');
-                localStorage.removeItem('scan_excludeMemes');
 
                 processAndRender();
             }
@@ -427,14 +407,12 @@
                 const minVolume = parseFloat(minVolumeInput.value) || 0;
                 const minPrice = parseFloat(minPriceInput.value) || 0;
                 const minTrades = parseInt(minTradesInput.value) || 0;
-                const excludeMemes = excludeMemesCheck.checked;
                 const searchText = searchFilterInput.value.trim().toLowerCase();
 
                 let filtered = rawMasterData.filter(item => {
                     if (item.volume < minVolume) return false;
                     if (item.price < minPrice) return false;
                     if (item.trades < minTrades) return false;
-                    if (excludeMemes && MEME_BLACKLIST.test(item.symbol)) return false;
                     if (searchText && !item.symbol.toLowerCase().includes(searchText)) return false;
                     return true;
                 });
@@ -500,7 +478,6 @@
                     const decimalsPrice = item.price < 0.0001 ? 8 : item.price < 0.01 ? 6 : 2;
                     const formattedPrice = formatNumber(item.price, decimalsPrice);
                     
-                    // Volumen formateado con M y K
                     const formattedVolume = formatVolume(item.volume);
                     
                     const formattedChange = formatNumber(item.change, 2);
@@ -550,7 +527,7 @@
                 processAndRender();
             });
 
-            const inputs = [minVolumeInput, minPriceInput, minTradesInput, excludeMemesCheck];
+            const inputs = [minVolumeInput, minPriceInput, minTradesInput];
             let debounceTimer;
             inputs.forEach(input => {
                 input.addEventListener('input', () => {
