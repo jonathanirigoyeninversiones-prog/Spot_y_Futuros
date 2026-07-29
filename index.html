@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>🛡️ vvv Spot Scanner - Confluencia 1d + 4h (Historial Mínimo 300 Velas)</title>
+    <title>🛡️ Spot Scanner - Confluencia 1d + 4h (Sin Stables & 200 Velas)</title>
     <style>
         * {
             margin: 0;
@@ -243,8 +243,8 @@
 </head>
 <body>
     <div class="container">
-        <h1>🛡️ Spot Scanner - Confluencia 1d + 4h (Historial Estricto 300)</h1>
-        <p class="subtitle">Conexión directa a Binance · Exclusión automática de activos con menos de 300 velas diarias y abanico alcista verificado</p>
+        <h1>🛡️ Spot Scanner - Confluencia 1d + 4h (Sin Stables & 200 Velas)</h1>
+        <p class="subtitle">Conexión directa a Binance · Exclusión de stablecoins, historial mínimo de 200 velas y abanico alcista verificado</p>
 
         <div class="controls">
             <div class="control-group">
@@ -294,7 +294,7 @@
             <div id="tableContainer">
                 <div class="loading">
                     <div class="spinner"></div>
-                    <p>Conectando con la API de Binance y validando historial mínimo de 300 velas diarias...</p>
+                    <p>Conectando con la API de Binance, excluyendo stablecoins y validando abanico alcista (1d + 4h)...</p>
                 </div>
             </div>
         </div>
@@ -312,6 +312,9 @@
                 ema2: 100,
                 ema3: 200
             };
+
+            // ----- LISTA NEGRA DE STABLECOINS -----
+            const STABLECOINS = /^(USDC|FDUSD|TUSD|USDT|DAI|EUR|USDP|USDD|PYUSD|GUSD|FRAX|LUSD|SUSD|BUSD)USDT$/i;
 
             // ----- ESTADO GLOBAL -----
             let rawMasterData = [];
@@ -425,10 +428,10 @@
                 fetchAndFilter();
             }
 
-            // ----- FUNCIÓN BLINDADA DE VALIDACIÓN CON HISTORIAL MÍNIMO DE 300 VELAS -----
+            // ----- FUNCIÓN BLINDADA DE VALIDACIÓN CON HISTORIAL MÍNIMO DE 200 VELAS -----
             function validateBullishFan(closes, p1, p2, p3, currentPrice) {
-                // REQUISITO ESTRICTO: Si el activo no tiene al menos 300 velas diarias, se rechaza de inmediato
-                if (closes.length < 300) return false;
+                // REQUISITO ESTRICTO: Mínimo 200 velas diarias
+                if (closes.length < 200) return false;
                 if (closes.length < p3) return false;
 
                 const e1 = calculateEMA(closes, p1);
@@ -451,7 +454,7 @@
                 tableContainer.innerHTML = `
                     <div class="loading">
                         <div class="spinner"></div>
-                        <p>Descargando datos y validando historial mínimo de 300 velas en 1d y 4h...</p>
+                        <p>Descargando datos, omitiendo stables y validando 200 velas (1d + 4h)...</p>
                     </div>
                 `;
                 countDisplay.textContent = '⏳ consultando...';
@@ -480,11 +483,13 @@
                     const p1 = parseInt(ema1Input.value) || 50;
                     const p2 = parseInt(ema2Input.value) || 100;
                     const p3 = parseInt(ema3Input.value) || 200;
-                    const fetchLimit = 300; // Límite estricto de 300 velas
+                    const fetchLimit = Math.max(p3 + 50, 250); // Margen holgado para 200 velas
 
-                    // 1. Filtrado duro previo en memoria
+                    // 1. Filtrado duro previo en memoria (excluyendo stablecoins)
                     const candidates = [];
                     for (const symbol of usdtSymbols) {
+                        if (STABLECOINS.test(symbol)) continue; // Descartar stablecoins de inmediato
+
                         const t = tickerMap[symbol];
                         if (!t) continue;
                         const volume = parseFloat(t.quoteVolume);
@@ -499,17 +504,17 @@
                         candidates.push({ symbol, price, volume, trades, change });
                     }
 
-                    // 2. Validación multi-temporal con requisito estricto de 300 velas
+                    // 2. Validación multi-temporal con requisito estricto de 200 velas
                     rawMasterData = [];
                     for (const item of candidates) {
                         try {
                             const currentPrice = item.price;
 
-                            // Validar temporalidad DIARIA (1d) exigiendo mínimo 300 velas
+                            // Validar temporalidad DIARIA (1d) exigiendo mínimo 200 velas
                             const res1d = await fetch(`https://api.binance.com/api/v3/klines?symbol=${item.symbol}&interval=1d&limit=${fetchLimit}`);
                             if (!res1d.ok) continue;
                             const klines1d = await res1d.json();
-                            if (klines1d.length < 300) continue; // Descarte automático si no llega a 300 velas diarias
+                            if (klines1d.length < 200) continue; // Descarte automático si no llega a 200 velas diarias
 
                             const closes1d = klines1d.map(k => parseFloat(k[4]));
                             if (!validateBullishFan(closes1d, p1, p2, p3, currentPrice)) continue;
@@ -518,7 +523,7 @@
                             const res4h = await fetch(`https://api.binance.com/api/v3/klines?symbol=${item.symbol}&interval=4h&limit=${fetchLimit}`);
                             if (!res4h.ok) continue;
                             const klines4h = await res4h.json();
-                            if (klines4h.length < 300) continue;
+                            if (klines4h.length < 200) continue;
 
                             const closes4h = klines4h.map(k => parseFloat(k[4]));
                             if (!validateBullishFan(closes4h, p1, p2, p3, currentPrice)) continue;
@@ -577,12 +582,12 @@
 
             // ----- RENDERIZADO DE TABLA -----
             function renderTable(results, totalPassed) {
-                countDisplay.textContent = `✅ ${totalPassed} criptos maduras con abanico alcista (1d + 4h)`;
+                countDisplay.textContent = `✅ ${totalPassed} criptos con abanico alcista perfecto (1d + 4h)`;
 
                 if (totalPassed === 0) {
                     tableContainer.innerHTML = `
                         <div class="empty">
-                            <p style="font-size:1.2rem;">🔎 No se encontraron criptos con más de 300 velas e historial alcista estricto</p>
+                            <p style="font-size:1.2rem;">🔎 No se encontraron criptos con más de 200 velas e historial alcista estricto</p>
                             <p style="color:#848e9c; margin-top:5px;">Prueba ajustando los parámetros o haciendo clic en "Recomendado".</p>
                         </div>
                     `;
