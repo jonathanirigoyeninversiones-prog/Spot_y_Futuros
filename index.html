@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>🛡️ 950 Spot Scanner - Confluencia Multitemporal (1d + 4h) con Gráfico Vertical Gigante</title>
+    <title>🛡️ Spot Scanner - Confluencia Multitemporal (1d + 4h)</title>
     <style>
         * {
             margin: 0;
@@ -149,7 +149,6 @@
             border-radius: 16px;
             overflow-x: auto;
             border: 1px solid #2b3139;
-            margin-bottom: 25px;
         }
         table {
             width: 100%;
@@ -231,36 +230,6 @@
             font-weight: 700;
             font-size: 1.1rem;
         }
-        /* ----- PANEL INFERIOR TRADINGVIEW VERTICAL GIGANTE ----- */
-        .chart-section {
-            background: #1e2329;
-            border-radius: 16px;
-            border: 1px solid #2b3139;
-            padding: 25px;
-            margin-top: 25px;
-            display: none; /* Oculto por defecto hasta hacer clic voluntariamente */
-        }
-        .chart-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 20px;
-            padding-bottom: 12px;
-            border-bottom: 1px solid #2b3139;
-        }
-        .chart-title {
-            font-size: 1.3rem;
-            font-weight: 700;
-            color: #f0b90b;
-        }
-        .tradingview-container {
-            width: 100%;
-            height: 950px; /* Altura vertical imponente de 950px para un análisis técnico profesional y sin restricciones */
-            border-radius: 12px;
-            overflow: hidden;
-            background: #0b0e11;
-            border: 1px solid #2b3139;
-        }
         @media (max-width: 1100px) {
             .controls {
                 flex-direction: column;
@@ -282,16 +251,13 @@
                 gap: 10px;
                 align-items: stretch;
             }
-            .tradingview-container {
-                height: 600px;
-            }
         }
     </style>
 </head>
 <body>
     <div class="container">
         <h1>🛡️ Spot Scanner - Confluencia Multitemporal (1d + 4h)</h1>
-        <p class="subtitle">Conexión directa a Binance · Haz clic en cualquier cripto para evaluar su gráfico en tamaño vertical gigante</p>
+        <p class="subtitle">Conexión directa a Binance · Haz clic en cualquier cripto para abrir su gráfico de TradingView en una pestaña nueva</p>
 
         <div class="controls">
             <div class="control-group">
@@ -345,16 +311,8 @@
                 </div>
             </div>
         </div>
-
-        <div class="chart-section" id="chartSection">
-            <div class="chart-header">
-                <div class="chart-title" id="chartTitle">📊 Análisis Técnico Profesional Spot - Binance</div>
-            </div>
-            <div class="tradingview-container" id="tradingview_widget"></div>
-        </div>
     </div>
 
-    <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
     <script>
         (function() {
             // ----- VALORES RECOMENDADOS ORIGINALES -----
@@ -375,7 +333,6 @@
             let rawMasterData = [];
             let currentSortColumn = 'volume';
             let currentSortDirection = 'desc';
-            let tvWidget = null;
 
             // ----- ELEMENTOS DOM -----
             const minVolumeInput = document.getElementById('minVolume');
@@ -390,35 +347,6 @@
             const tableContainer = document.getElementById('tableContainer');
             const countDisplay = document.getElementById('countDisplay');
             const candleTimerEl = document.getElementById('candleTimer');
-            const chartTitleEl = document.getElementById('chartTitle');
-            const chartSectionEl = document.getElementById('chartSection');
-
-            // ----- CARGAR TRADINGVIEW VERTICAL GIGANTE SOLO AL HACER CLIC VOLUNTARIAMENTE -----
-            function loadTradingViewChart(symbol) {
-                chartSectionEl.style.display = 'block'; // Mostrar el panel inferior al hacer clic
-                chartTitleEl.textContent = `📊 Análisis Técnico Profesional Spot: ${symbol} (Binance)`;
-                document.getElementById('tradingview_widget').innerHTML = '';
-                
-                try {
-                    tvWidget = new TradingView.widget({
-                        "width": "100%",
-                        "height": "100%",
-                        "symbol": `BINANCE:${symbol}`,
-                        "interval": "240", // 4 horas por defecto para confluencia
-                        "timezone": "Etc/UTC",
-                        "theme": "dark",
-                        "style": "1",
-                        "locale": "es",
-                        "toolbar_bg": "#1e2329",
-                        "enable_publishing": false,
-                        "hide_side_toolbar": false,
-                        "allow_symbol_change": true,
-                        "container_id": "tradingview_widget"
-                    });
-                } catch (e) {
-                    console.error("Error cargando TradingView widget:", e);
-                }
-            }
 
             // ----- TEMPORIZADOR DE VELA DE 4 HORAS -----
             function startCandleTimer() {
@@ -510,7 +438,6 @@
                 ema3Input.value = RECOMMENDED_VALUES.ema3;
 
                 localStorage.clear();
-                chartSectionEl.style.display = 'none'; // Ocultar gráfico al restablecer
                 fetchAndFilter();
             }
 
@@ -723,7 +650,7 @@
                     html += `
                         <tr>
                             <td>${index + 1}</td>
-                            <td><span class="symbol" data-symbol="${item.symbol}" title="Haz clic para abrir gráfico vertical gigante">${item.symbol}</span></td>
+                            <td><span class="symbol" data-symbol="${item.symbol}" title="Haz clic para abrir gráfico en TradingView">${item.symbol}</span></td>
                             <td>$${formattedPrice}</td>
                             <td>$${formattedVolume}</td>
                             <td class="${changeClass}">${changeSign}${formattedChange}%</td>
@@ -755,12 +682,12 @@
                     });
                 });
 
-                // Evento de clic voluntario en los símbolos para abrir el gráfico vertical gigante
+                // Evento de clic en los símbolos para abrir TradingView en pestaña nueva
                 document.querySelectorAll('.symbol[data-symbol]').forEach(el => {
                     el.addEventListener('click', (e) => {
                         const symbol = e.target.getAttribute('data-symbol');
-                        loadTradingViewChart(symbol);
-                        chartSectionEl.scrollIntoView({ behavior: 'smooth' });
+                        const tvUrl = `https://www.tradingview.com/chart/?symbol=BINANCE:${symbol}`;
+                        window.open(tvUrl, '_blank');
                     });
                 });
             }
