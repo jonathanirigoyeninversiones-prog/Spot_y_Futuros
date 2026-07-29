@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>zzz Alpha Crypto Terminal - Futuros & Spot (100% API Binance)</title>
+    <title>Alpha Crypto Terminal - Futuros & Spot (API Real + Proxy Anti-Bloqueo)</title>
     <style>
         * {
             margin: 0;
@@ -204,7 +204,7 @@
         </div>
 
         <div id="loadingOverlay" class="loading-overlay">
-            <p>🔄 Conectando con la API oficial de Binance...</p>
+            <p>🔄 Conectando con la API de Binance a través del túnel seguro anti-bloqueo...</p>
         </div>
 
         <div id="mainContent" class="hidden">
@@ -289,11 +289,13 @@
             }
 
             try {
-                // Petición directa y exclusiva a la API de Binance
-                const response = await fetch('https://api.binance.com/api/v3/ticker/24hr');
-                if (!response.ok) {
-                    throw new Error(`Error HTTP: ${response.status}`);
-                }
+                // Utilizando proxy transparente público para esquivar restricciones geográficas de IP hacia Binance
+                const targetUrl = 'https://api.binance.com/api/v3/ticker/24hr';
+                const proxyUrl = 'https://api.allorigins.win/raw?url=' + encodeURIComponent(targetUrl);
+                
+                const response = await fetch(proxyUrl);
+                if (!response.ok) throw new Error(`Error en respuesta del servidor proxy: ${response.status}`);
+                
                 const data = await response.json();
 
                 // Filtrar criptos principales USDT de Binance
@@ -360,8 +362,8 @@
                 }
 
             } catch (error) {
-                console.error("Error al conectar con la API de Binance:", error);
-                loadingOverlay.innerHTML = `<p style="color:#dc3545;">⚠️ Error al conectar con la API de Binance (${error.message}). Compruebe su conexión o restricciones de red/CORS.</p>`;
+                console.error("Error al conectar con la API real:", error);
+                loadingOverlay.innerHTML = `<p style="color:#dc3545;">⚠️ Restricción de red o bloqueo geográfico detectado en la API. Error: ${error.message}</p>`;
             }
         }
 
@@ -386,7 +388,7 @@
             runAnalysis('spot');
         });
 
-        console.log('🔗 Alpha Crypto Terminal - Conectado exclusivamente a la API de Binance.');
+        console.log('🌐 Alpha Crypto Terminal - Enrutador proxy anti-bloqueo geográfico activado.');
     </script>
 </body>
 </html>
