@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>🛡️ ccc Spot Scanner - Confluencia 1d + 4h (Corregido)</title>
+    <title>🛡️ Spot Scanner - Confluencia 1d + 4h (Blindado)</title>
     <style>
         * {
             margin: 0;
@@ -243,8 +243,8 @@
 </head>
 <body>
     <div class="container">
-        <h1>🛡️ Spot Scanner - Confluencia 1d + 4h (Corregido)</h1>
-        <p class="subtitle">Conexión directa a Binance · Filtrado macro (1d) y confirmación estructural (4h) con abanico alcista estricto</p>
+        <h1>🛡️ Spot Scanner - Confluencia 1d + 4h (Blindado)</h1>
+        <p class="subtitle">Conexión directa a Binance · Abanico alcista estricto verificado matemáticamente</p>
 
         <div class="controls">
             <div class="control-group">
@@ -425,14 +425,26 @@
                 fetchAndFilter();
             }
 
-            // ----- FUNCIÓN PRINCIPAL CON ABANICO ALCISTA CORREGIDO Y BLINDADO -----
+            // ----- FUNCIÓN DE VALIDACIÓN BLINDADA DE ABANICO ALCISTA -----
+            function validateBullishFan(closes, p1, p2, p3, currentPrice) {
+                const e1 = calculateEMA(closes, p1);
+                const e2 = calculateEMA(closes, p2);
+                const e3 = calculateEMA(closes, p3);
+
+                if (e1 === null || e2 === null || e3 === null) return false;
+
+                // Condición blindada: Precio > EMA lenta (p3) Y EMA rápida (p1) > EMA intermedia (p2) Y EMA intermedia (p2) > EMA lenta (p3)
+                return (currentPrice > e3) && (e1 > e2) && (e2 > e3);
+            }
+
+            // ----- FUNCIÓN PRINCIPAL DE ANÁLISIS MULTI-TEMPORAL -----
             async function fetchAndFilter() {
                 refreshBtn.disabled = true;
                 refreshBtn.textContent = '⏳ Analizando...';
                 tableContainer.innerHTML = `
                     <div class="loading">
                         <div class="spinner"></div>
-                        <p>Descargando datos y validando abanico alcista (EMA 50 > 100 > 200) en 1d y 4h...</p>
+                        <p>Descargando datos y validando abanico alcista estricto (1d + 4h)...</p>
                     </div>
                 `;
                 countDisplay.textContent = '⏳ consultando...';
@@ -480,10 +492,12 @@
                         candidates.push({ symbol, price, volume, trades, change });
                     }
 
-                    // 2. Validación multi-temporal estricta (1d + 4h) con abanico alcista correcto
+                    // 2. Validación multi-temporal estricta (1d + 4h)
                     rawMasterData = [];
                     for (const item of candidates) {
                         try {
+                            const currentPrice = item.price;
+
                             // Validar temporalidad DIARIA (1d)
                             const res1d = await fetch(`https://api.binance.com/api/v3/klines?symbol=${item.symbol}&interval=1d&limit=${maxPeriod + 50}`);
                             if (!res1d.ok) continue;
@@ -491,14 +505,7 @@
                             if (klines1d.length < maxPeriod) continue;
 
                             const closes1d = klines1d.map(k => parseFloat(k[4]));
-                            const e1_1d = calculateEMA(closes1d, p1);
-                            const e2_1d = calculateEMA(closes1d, p2);
-                            const e3_1d = calculateEMA(closes1d, p3);
-                            const currentPrice = item.price;
-
-                            // CONDICIÓN CORREGIDA: Precio > EMA3 y EMA1 > EMA2 > EMA3
-                            const isBullish1d = currentPrice > e3_1d && e1_1d > e2_1d && e2_1d > e3_1d;
-                            if (!isBullish1d) continue;
+                            if (!validateBullishFan(closes1d, p1, p2, p3, currentPrice)) continue;
 
                             // Validar temporalidad de 4 HORAS (4h)
                             const res4h = await fetch(`https://api.binance.com/api/v3/klines?symbol=${item.symbol}&interval=4h&limit=${maxPeriod + 50}`);
@@ -507,14 +514,9 @@
                             if (klines4h.length < maxPeriod) continue;
 
                             const closes4h = klines4h.map(k => parseFloat(k[4]));
-                            const e1_4h = calculateEMA(closes4h, p1);
-                            const e2_4h = calculateEMA(closes4h, p2);
-                            const e3_4h = calculateEMA(closes4h, p3);
+                            if (!validateBullishFan(closes4h, p1, p2, p3, currentPrice)) continue;
 
-                            // CONDICIÓN CORREGIDA: Precio > EMA3 y EMA1 > EMA2 > EMA3
-                            const isBullish4h = currentPrice > e3_4h && e1_4h > e2_4h && e2_4h > e3_4h;
-                            if (!isBullish4h) continue;
-
+                            // Si pasa ambas validaciones de forma perfecta, entra a los resultados
                             rawMasterData.push(item);
                         } catch (err) {
                             console.error(`Error procesando ${item.symbol}:`, err);
@@ -568,7 +570,7 @@
 
             // ----- RENDERIZADO DE TABLA -----
             function renderTable(results, totalPassed) {
-                countDisplay.textContent = `✅ ${totalPassed} criptos con confluencia alcista estricta (1d + 4h)`;
+                countDisplay.textContent = `✅ ${totalPassed} criptos con abanico alcista perfecto (1d + 4h)`;
 
                 if (totalPassed === 0) {
                     tableContainer.innerHTML = `
