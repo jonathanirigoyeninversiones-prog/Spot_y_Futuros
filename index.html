@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>🛡️ xxx Spot Scanner - Binance</title>
+    <title>🛡️ Spot Scanner - Confluencia 1d + 4h con Temporizador</title>
     <style>
         * {
             margin: 0;
@@ -74,12 +74,26 @@
             padding-top: 10px;
             border-top: 1px solid #2b3139;
             flex-wrap: wrap;
+            align-items: center;
         }
         .actions-right {
             display: flex;
             gap: 10px;
             margin-left: auto;
             align-items: center;
+        }
+        .timer-box {
+            background: #0b0e11;
+            border: 1px solid #f0b90b;
+            color: #f0b90b;
+            padding: 8px 14px;
+            border-radius: 10px;
+            font-weight: 700;
+            font-size: 0.9rem;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            white-space: nowrap;
         }
         .btn-recommended {
             background: #2b3139;
@@ -211,6 +225,7 @@
             .actions-right {
                 margin-left: 0;
                 justify-content: space-between;
+                flex-wrap: wrap;
             }
             .control-group {
                 justify-content: space-between;
@@ -221,14 +236,15 @@
             .ema-row {
                 flex-direction: column;
                 gap: 10px;
+                align-items: stretch;
             }
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>🛡️ Spot Scanner - Binance</h1>
-        <p class="subtitle">Conexión directa a Binance · Búsqueda activa, formato numérico internacional y configuración de EMAs</p>
+        <h1>🛡️ Spot Scanner - Confluencia 1d + 4h</h1>
+        <p class="subtitle">Conexión directa a Binance · Filtrado macro (1d) y confirmación estructural (4h) con abanico de EMAs</p>
 
         <div class="controls">
             <div class="control-group">
@@ -249,21 +265,22 @@
             </div>
             
             <div class="actions-right">
+                <div class="timer-box" id="candleTimer" title="Tiempo restante para cierre de vela 4h">⏳ 00:00:00</div>
                 <button class="btn-recommended" id="recommendedBtn" title="Restablecer valores recomendados">⭐ Recomendado</button>
                 <button class="btn-refresh" id="refreshBtn">🔁 Escanear</button>
             </div>
 
             <div class="ema-row">
                 <div class="control-group">
-                    <label>📈 Ema 1 (Períodos)</label>
+                    <label>📈 EMA 1 (Per.)</label>
                     <input type="number" id="ema1" value="50" step="1">
                 </div>
                 <div class="control-group">
-                    <label>📈 Ema 2 (Períodos)</label>
+                    <label>📈 EMA 2 (Per.)</label>
                     <input type="number" id="ema2" value="100" step="1">
                 </div>
                 <div class="control-group">
-                    <label>📈 Ema 3 (Períodos)</label>
+                    <label>📈 EMA 3 (Per.)</label>
                     <input type="number" id="ema3" value="200" step="1">
                 </div>
             </div>
@@ -277,7 +294,7 @@
             <div id="tableContainer">
                 <div class="loading">
                     <div class="spinner"></div>
-                    <p>Conectando con la API de Binance...</p>
+                    <p>Conectando con la API de Binance y validando estructura alcista (1d + 4h)...</p>
                 </div>
             </div>
         </div>
@@ -296,10 +313,10 @@
                 ema3: 200
             };
 
-            // ----- ESTADO GLOBAL DE DATOS Y ORDENAMIENTO -----
+            // ----- ESTADO GLOBAL -----
             let rawMasterData = [];
             let currentSortColumn = 'volume';
-            let currentSortDirection = 'desc'; // 'asc', 'desc', o 'none'
+            let currentSortDirection = 'desc';
 
             // ----- ELEMENTOS DOM -----
             const minVolumeInput = document.getElementById('minVolume');
@@ -313,6 +330,29 @@
             const refreshBtn = document.getElementById('refreshBtn');
             const tableContainer = document.getElementById('tableContainer');
             const countDisplay = document.getElementById('countDisplay');
+            const candleTimerEl = document.getElementById('candleTimer');
+
+            // ----- TEMPORIZADOR DE VELA DE 4 HORAS -----
+            function startCandleTimer() {
+                function updateTimer() {
+                    const now = new Date();
+                    const utcMs = now.getTime();
+                    // Bloque de 4 horas en milisegundos (4 * 3600 * 1000 = 14400000 ms)
+                    const intervalMs = 4 * 60 * 60 * 1000;
+                    const nextCloseMs = Math.ceil(utcMs / intervalMs) * intervalMs;
+                    const diffMs = nextCloseMs - utcMs;
+
+                    const totalSeconds = Math.floor(diffMs / 1000);
+                    const hours = Math.floor(totalSeconds / 3600);
+                    const minutes = Math.floor((totalSeconds % 3600) / 60);
+                    const seconds = totalSeconds % 60;
+
+                    const pad = (n) => String(n).padStart(2, '0');
+                    candleTimerEl.textContent = `⏳ 4h: ${pad(hours)}:${pad(minutes)}:${pad(seconds)}`;
+                }
+                updateTimer();
+                setInterval(updateTimer, 1000);
+            }
 
             // ----- FORMATEADOR NUMÉRICO ESTÁNDAR (XXX.XXX,XX) -----
             function formatNumber(num, decimals = 2) {
@@ -325,7 +365,7 @@
                 return decimals > 0 ? `${integerPart},${decimalPart}` : integerPart;
             }
 
-            // ----- FORMATEADOR DE VOLUMEN CON M Y K (XXX.XXX,XX M/K) -----
+            // ----- FORMATEADOR DE VOLUMEN (M / K) -----
             function formatVolume(num) {
                 if (isNaN(num) || num === null) return '0,00';
                 if (num >= 1e6) {
@@ -337,7 +377,22 @@
                 }
             }
 
-            // ----- CARGAR CONFIGURACIÓN DESDE LOCALSTORAGE -----
+            // ----- CÁLCULO MATEMÁTICO DE EMA -----
+            function calculateEMA(closes, period) {
+                if (closes.length < period) return null;
+                const k = 2 / (period + 1);
+                let sum = 0;
+                for (let i = 0; i < period; i++) {
+                    sum += closes[i];
+                }
+                let ema = sum / period;
+                for (let i = period; i < closes.length; i++) {
+                    ema = (closes[i] * k) + (ema * (1 - k));
+                }
+                return ema;
+            }
+
+            // ----- CARGAR Y GUARDAR CONFIGURACIÓN -----
             function loadSavedSettings() {
                 minVolumeInput.value = localStorage.getItem('scan_minVolume') ?? RECOMMENDED_VALUES.minVolume;
                 minPriceInput.value = localStorage.getItem('scan_minPrice') ?? RECOMMENDED_VALUES.minPrice;
@@ -348,7 +403,6 @@
                 ema3Input.value = localStorage.getItem('scan_ema3') ?? RECOMMENDED_VALUES.ema3;
             }
 
-            // ----- GUARDAR CONFIGURACIÓN EN LOCALSTORAGE -----
             function saveSettings() {
                 localStorage.setItem('scan_minVolume', minVolumeInput.value);
                 localStorage.setItem('scan_minPrice', minPriceInput.value);
@@ -359,7 +413,6 @@
                 localStorage.setItem('scan_ema3', ema3Input.value);
             }
 
-            // ----- RESTABLECER A VALORES RECOMENDADOS -----
             function applyRecommended() {
                 minVolumeInput.value = RECOMMENDED_VALUES.minVolume;
                 minPriceInput.value = RECOMMENDED_VALUES.minPrice;
@@ -369,25 +422,18 @@
                 ema2Input.value = RECOMMENDED_VALUES.ema2;
                 ema3Input.value = RECOMMENDED_VALUES.ema3;
 
-                localStorage.removeItem('scan_minVolume');
-                localStorage.removeItem('scan_minPrice');
-                localStorage.removeItem('scan_minTrades');
-                localStorage.removeItem('scan_searchFilter');
-                localStorage.removeItem('scan_ema1');
-                localStorage.removeItem('scan_ema2');
-                localStorage.removeItem('scan_ema3');
-
-                processAndRender();
+                localStorage.clear();
+                fetchAndFilter();
             }
 
-            // ----- DESCARGAR DATOS DESDE BINANCE -----
-            async function fetchFromBinance() {
+            // ----- FUNCIÓN PRINCIPAL CON ANÁLISIS MULTI-TEMPORAL (1d + 4h) -----
+            async function fetchAndFilter() {
                 refreshBtn.disabled = true;
-                refreshBtn.textContent = '⏳ Cargando...';
+                refreshBtn.textContent = '⏳ Analizando...';
                 tableContainer.innerHTML = `
                     <div class="loading">
                         <div class="spinner"></div>
-                        <p>Descargando datos de Binance...</p>
+                        <p>Descargando datos y validando estructura alcista (1d + 4h)...</p>
                     </div>
                 `;
                 countDisplay.textContent = '⏳ consultando...';
@@ -410,18 +456,68 @@
                     const tickerMap = {};
                     tickerData.forEach(t => { tickerMap[t.symbol] = t; });
 
-                    rawMasterData = [];
+                    const minVolume = parseFloat(minVolumeInput.value) || 0;
+                    const minPrice = parseFloat(minPriceInput.value) || 0;
+                    const minTrades = parseInt(minTradesInput.value) || 0;
+                    const p1 = parseInt(ema1Input.value) || 50;
+                    const p2 = parseInt(ema2Input.value) || 100;
+                    const p3 = parseInt(ema3Input.value) || 200;
+                    const maxPeriod = Math.max(p1, p2, p3);
+
+                    // 1. Filtrado duro previo en memoria
+                    const candidates = [];
                     for (const symbol of usdtSymbols) {
                         const t = tickerMap[symbol];
                         if (!t) continue;
+                        const volume = parseFloat(t.quoteVolume);
+                        const price = parseFloat(t.lastPrice);
+                        const trades = parseInt(t.count);
+                        const change = parseFloat(t.priceChangePercent);
 
-                        rawMasterData.push({
-                            symbol,
-                            price: parseFloat(t.lastPrice),
-                            volume: parseFloat(t.quoteVolume),
-                            trades: parseInt(t.count),
-                            change: parseFloat(t.priceChangePercent)
-                        });
+                        if (volume < minVolume) continue;
+                        if (price < minPrice) continue;
+                        if (trades < minTrades) continue;
+
+                        candidates.push({ symbol, price, volume, trades, change });
+                    }
+
+                    // 2. Validación multi-temporal (1d + 4h) para cada candidato
+                    rawMasterData = [];
+                    for (const item of candidates) {
+                        try {
+                            // Validar temporalidad DIARIA (1d)
+                            const res1d = await fetch(`https://api.binance.com/api/v3/klines?symbol=${item.symbol}&interval=1d&limit=${maxPeriod + 50}`);
+                            if (!res1d.ok) continue;
+                            const klines1d = await res1d.json();
+                            if (klines1d.length < maxPeriod) continue;
+
+                            const closes1d = klines1d.map(k => parseFloat(k[4]));
+                            const e1_1d = calculateEMA(closes1d, p1);
+                            const e2_1d = calculateEMA(closes1d, p2);
+                            const e3_1d = calculateEMA(closes1d, p3);
+                            const currentPrice = item.price;
+
+                            const isBullish1d = currentPrice > e3_1d && e1_1d > e2_1d && e2_1d > e3_1d;
+                            if (!isBullish1d) continue;
+
+                            // Validar temporalidad de 4 HORAS (4h)
+                            const res4h = await fetch(`https://api.binance.com/api/v3/klines?symbol=${item.symbol}&interval=4h&limit=${maxPeriod + 50}`);
+                            if (!res4h.ok) continue;
+                            const klines4h = await res4h.json();
+                            if (klines4h.length < maxPeriod) continue;
+
+                            const closes4h = klines4h.map(k => parseFloat(k[4]));
+                            const e1_4h = calculateEMA(closes4h, p1);
+                            const e2_4h = calculateEMA(closes4h, p2);
+                            const e3_4h = calculateEMA(closes4h, p3);
+
+                            const isBullish4h = currentPrice > e3_4h && e1_4h > e2_4h && e2_4h > e3_4h;
+                            if (!isBullish4h) continue;
+
+                            rawMasterData.push(item);
+                        } catch (err) {
+                            console.error(`Error procesando ${item.symbol}:`, err);
+                        }
                     }
 
                     processAndRender();
@@ -441,17 +537,11 @@
                 }
             }
 
-            // ----- FILTRAR Y ORDENAR DATOS EN MEMORIA -----
+            // ----- FILTRAR Y ORDENAR EN MEMORIA -----
             function processAndRender() {
-                const minVolume = parseFloat(minVolumeInput.value) || 0;
-                const minPrice = parseFloat(minPriceInput.value) || 0;
-                const minTrades = parseInt(minTradesInput.value) || 0;
                 const searchText = searchFilterInput.value.trim().toLowerCase();
 
                 let filtered = rawMasterData.filter(item => {
-                    if (item.volume < minVolume) return false;
-                    if (item.price < minPrice) return false;
-                    if (item.trades < minTrades) return false;
                     if (searchText && !item.symbol.toLowerCase().includes(searchText)) return false;
                     return true;
                 });
@@ -475,16 +565,15 @@
                 renderTable(filtered, rawMasterData.length);
             }
 
-            // ----- RENDERIZADO DE LA TABLA -----
-            function renderTable(results, totalPairs) {
-                const count = results.length;
-                countDisplay.textContent = `✅ ${count} criptos pasan el filtro (de ${totalPairs} pares USDT totales)`;
+            // ----- RENDERIZADO DE TABLA -----
+            function renderTable(results, totalPassed) {
+                countDisplay.textContent = `✅ ${totalPassed} criptos con confluencia alcista (1d + 4h)`;
 
-                if (count === 0) {
+                if (totalPassed === 0) {
                     tableContainer.innerHTML = `
                         <div class="empty">
-                            <p style="font-size:1.2rem;">🔎 No se encontraron criptos que cumplan los filtros actuales</p>
-                            <p style="color:#848e9c; margin-top:5px;">Prueba ajustando los parámetros, limpiando la búsqueda activa o haciendo clic en "Recomendado".</p>
+                            <p style="font-size:1.2rem;">🔎 No se encontraron criptos con estructura alcista 1d + 4h bajo estos filtros</p>
+                            <p style="color:#848e9c; margin-top:5px;">Prueba ajustando los parámetros o haciendo clic en "Recomendado".</p>
                         </div>
                     `;
                     return;
@@ -556,7 +645,7 @@
             }
 
             // ----- EVENTOS -----
-            refreshBtn.addEventListener('click', fetchFromBinance);
+            refreshBtn.addEventListener('click', fetchAndFilter);
             recommendedBtn.addEventListener('click', applyRecommended);
 
             searchFilterInput.addEventListener('input', () => {
@@ -570,18 +659,19 @@
                 input.addEventListener('input', () => {
                     saveSettings();
                     clearTimeout(debounceTimer);
-                    debounceTimer = setTimeout(processAndRender, 300);
+                    debounceTimer = setTimeout(fetchAndFilter, 400);
                 });
                 input.addEventListener('change', () => {
                     saveSettings();
                     clearTimeout(debounceTimer);
-                    debounceTimer = setTimeout(processAndRender, 300);
+                    debounceTimer = setTimeout(fetchAndFilter, 400);
                 });
             });
 
             // ----- INICIALIZACIÓN -----
             loadSavedSettings();
-            fetchFromBinance();
+            startCandleTimer();
+            fetchAndFilter();
         })();
     </script>
 </body>
