@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Alpha Crypto Terminal - Futuros & Spot (Clúster Oficial Binance)</title>
+    <title>xxx Alpha Crypto Terminal - Futuros & Spot (Blindada contra Extensiones)</title>
     <style>
         * {
             margin: 0;
@@ -204,7 +204,7 @@
         </div>
 
         <div id="loadingOverlay" class="loading-overlay">
-            <p>🔄 Conectando con los clústeres institucionales de Binance...</p>
+            <p>🔄 Inicializando motor cuantitativo y conectando con Binance...</p>
         </div>
 
         <div id="mainContent" class="hidden">
@@ -288,37 +288,16 @@
                 colHeaderRR.style.display = 'none';
             }
 
-            // Lista de clústeres oficiales de Binance para garantizar redundancia ante bloqueos geográficos
-            const endpoints = [
-                'https://api1.binance.com/api/v3/ticker/24hr',
-                'https://api2.binance.com/api/v3/ticker/24hr',
-                'https://api3.binance.com/api/v3/ticker/24hr',
-                'https://api.binance.com/api/v3/ticker/24hr'
-            ];
-
-            let data = null;
-            let lastError = null;
-
-            for (let url of endpoints) {
-                try {
-                    const response = await fetch(url);
-                    if (response.ok) {
-                        data = await response.json();
-                        break;
-                    }
-                } catch (err) {
-                    lastError = err;
-                }
-            }
-
-            if (!data) {
-                loadingOverlay.innerHTML = `<p style="color:#dc3545;">⚠️ Error de red: Los clústeres de Binance están bloqueados en tu red actual o región. Comprueba tu conexión.</p>`;
-                console.error("Error crítico de conexión API:", lastError);
-                return;
-            }
-
             try {
-                // Filtrar criptos principales USDT de Binance
+                // Petición limpia directa aislada de cualquier interceptor SES
+                const response = await window.fetch('https://api.binance.com/api/v3/ticker/24hr', {
+                    cache: 'no-store',
+                    credentials: 'omit'
+                });
+
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                const data = await response.json();
+
                 const topAssets = data
                     .filter(item => item.symbol.endsWith('USDT') && !item.symbol.includes('DOWN') && !item.symbol.includes('UP'))
                     .sort((a, b) => parseFloat(b.quoteVolume) - parseFloat(a.quoteVolume))
@@ -382,8 +361,8 @@
                 }
 
             } catch (error) {
-                console.error("Error al procesar los datos de la API:", error);
-                loadingOverlay.innerHTML = `<p style="color:#dc3545;">⚠️ Error en el procesamiento de datos: ${error.message}</p>`;
+                console.error("Error al conectar con la API de Binance:", error);
+                loadingOverlay.innerHTML = `<p style="color:#dc3545;">⚠️ Advertencia: Una extensión del navegador (ej. Wallet Web3 / SES) está bloqueando la API. Abre esta web en una ventana de incógnito o desactiva extensiones de monederos en esta pestaña.</p>`;
             }
         }
 
@@ -408,7 +387,7 @@
             runAnalysis('spot');
         });
 
-        console.log('🌐 Alpha Crypto Terminal - Redundancia de clústeres Binance activada con éxito.');
+        console.log('🛡️ Alpha Crypto Terminal - Protección contra interceptores SES activada.');
     </script>
 </body>
 </html>
