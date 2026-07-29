@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>🛡️ 000 Spot Scanner - Confluencia Dinámica 100% Real (1d + 4h)</title>
+    <title>🛡️ Spot Scanner - Confluencia 1d + 4h (Blindado y Sin Duplicados)</title>
     <style>
         * {
             margin: 0;
@@ -217,6 +217,13 @@
             padding: 50px;
             color: #848e9c;
         }
+        .error-box {
+            text-align: center;
+            padding: 50px;
+            color: #f6465d;
+            font-weight: 700;
+            font-size: 1.1rem;
+        }
         @media (max-width: 1100px) {
             .controls {
                 flex-direction: column;
@@ -243,8 +250,8 @@
 </head>
 <body>
     <div class="container">
-        <h1>🛡️ Spot Scanner - Confluencia 100% Dinámica (1d + 4h)</h1>
-        <p class="subtitle">Conexión directa a Binance · Requisito de historial y tendencia estrictamente ligado a la EMA 3</p>
+        <h1>🛡️ Spot Scanner - Confluencia Multitemporal (1d + 4h)</h1>
+        <p class="subtitle">Conexión directa a Binance · Validación estricta de orden de EMAs, historial de EMA 3 y exclusión de stables</p>
 
         <div class="controls">
             <div class="control-group">
@@ -294,7 +301,7 @@
             <div id="tableContainer">
                 <div class="loading">
                     <div class="spinner"></div>
-                    <p>Conectando con la API de Binance y escaneando bajo configuración de EMAs dinámicas...</p>
+                    <p>Iniciando escáner de alta precisión...</p>
                 </div>
             </div>
         </div>
@@ -428,9 +435,9 @@
                 fetchAndFilter();
             }
 
-            // ----- VALIDACIÓN DINÁMICA ESTRICTA BASADA EN LA EMA 3 -----
+            // ----- VALIDACIÓN ESTRICTA DEL ABANICO Y HISTORIAL DE EMA 3 -----
             function validateBullishFan(closes, p1, p2, p3, currentPrice) {
-                // FILTRO DE HISTORIAL OBLIGATORIO: La cantidad de velas debe ser al menos igual al valor de la EMA 3 configurada
+                // EXIGENCIA ABSOLUTA DE HISTORIAL: Si el activo no posee al menos el número de velas de la EMA 3, se descarta.
                 if (closes.length < p3) return false;
 
                 const e1 = calculateEMA(closes, p1);
@@ -439,21 +446,39 @@
 
                 if (e1 === null || e2 === null || e3 === null) return false;
 
-                // Condición de abanico alcista perfecto y orden de medias móviles:
-                // 1. Precio actual > EMA 3 (Tendencia alcista dictada por la EMA 3)
+                // Condición de confluencia alcista implacable:
+                // 1. Precio actual > EMA 3 (tendencia macro dictada por la EMA 3)
                 // 2. EMA 1 > EMA 2
                 // 3. EMA 2 > EMA 3
                 return (currentPrice > e3) && (e1 > e2) && (e2 > e3);
             }
 
-            // ----- FUNCIÓN PRINCIPAL DE ANÁLISIS MULTI-TEMPORAL DINÁMICO -----
+            // ----- FUNCIÓN PRINCIPAL DE ANÁLISIS MULTITEMPORAL SIN DUPLICADOS -----
             async function fetchAndFilter() {
                 refreshBtn.disabled = true;
                 refreshBtn.textContent = '⏳ Analizando...';
+                
+                const p1 = parseInt(ema1Input.value) || 0;
+                const p2 = parseInt(ema2Input.value) || 0;
+                const p3 = parseInt(ema3Input.value) || 0;
+
+                // VALIDACIÓN DE ERROR DE EMAs: Si la EMA 3 es menor que la EMA 1 o EMA 2, o los periodos son inválidos
+                if (p3 <= p2 || p2 <= p1 || p1 <= 0) {
+                    tableContainer.innerHTML = `
+                        <div class="error-box">
+                            ❌ Error de EMAs: La EMA 3 (largo plazo) debe ser mayor que la EMA 2 y la EMA 1. Verifique los períodos configurados.
+                        </div>
+                    `;
+                    countDisplay.textContent = '⚠️ Error de Configuración';
+                    refreshBtn.disabled = false;
+                    refreshBtn.textContent = '🔁 Escanear';
+                    return;
+                }
+
                 tableContainer.innerHTML = `
                     <div class="loading">
                         <div class="spinner"></div>
-                        <p>Descargando datos y validando abanico alcista adaptado al valor de la EMA 3 (1d + 4h)...</p>
+                        <p>Escaneando Binance y validando historial estricto de la EMA 3 (${p3} periodos)...</p>
                     </div>
                 `;
                 countDisplay.textContent = '⏳ consultando...';
@@ -463,11 +488,14 @@
                     if (!infoRes.ok) throw new Error('Error al obtener exchangeInfo');
                     const info = await infoRes.json();
                     
-                    const usdtSymbols = info.symbols
-                        .filter(s => s.quoteAsset === 'USDT' && s.status === 'TRADING')
-                        .map(s => s.symbol);
+                    // Filtrar pares USDT únicos y excluir stablecoins de forma limpia
+                    const usdtSymbols = [...new Set(
+                        info.symbols
+                            .filter(s => s.quoteAsset === 'USDT' && s.status === 'TRADING')
+                            .map(s => s.symbol)
+                    )].filter(symbol => !STABLECOINS.test(symbol));
                     
-                    if (usdtSymbols.length === 0) throw new Error('No se encontraron pares USDT');
+                    if (usdtSymbols.length === 0) throw new Error('No se encontraron pares USDT válidos');
 
                     const tickerRes = await fetch('https://api.binance.com/api/v3/ticker/24hr');
                     if (!tickerRes.ok) throw new Error('Error al obtener ticker 24h');
@@ -480,18 +508,13 @@
                     const minPrice = parseFloat(minPriceInput.value) || 0;
                     const minTrades = parseInt(minTradesInput.value) || 0;
                     
-                    // Captura 100% dinámica de los valores ingresados por el usuario
-                    const p1 = parseInt(ema1Input.value) || 50;
-                    const p2 = parseInt(ema2Input.value) || 100;
-                    const p3 = parseInt(ema3Input.value) || 200; // EMA 3 manda de forma absoluta el requisito histórico y de tendencia
-                    
-                    // Límite de descarga adaptado de manera limpia al valor exacto de la EMA 3
-                    const fetchLimit = p3 + 50;
+                    // Límite de descarga adaptado de forma estricta al valor de la EMA 3
+                    const fetchLimit = p3 + 60;
 
-                    // 1. Filtrado duro previo en memoria (excluyendo stablecoins)
-                    const candidates = [];
+                    // 1. Filtrado duro previo en memoria (sin duplicados)
+                    const candidatesMap = new Map();
                     for (const symbol of usdtSymbols) {
-                        if (STABLECOINS.test(symbol)) continue;
+                        if (candidatesMap.has(symbol)) continue;
 
                         const t = tickerMap[symbol];
                         if (!t) continue;
@@ -504,20 +527,22 @@
                         if (price < minPrice) continue;
                         if (trades < minTrades) continue;
 
-                        candidates.push({ symbol, price, volume, trades, change });
+                        candidatesMap.set(symbol, { symbol, price, volume, trades, change });
                     }
 
-                    // 2. Validación multi-temporal estricta con requisito dinámico de la EMA 3
+                    const candidates = Array.from(candidatesMap.values());
+
+                    // 2. Validación multitemporal estricta (1d + 4h) con requisito estricto de la EMA 3
                     rawMasterData = [];
                     for (const item of candidates) {
                         try {
                             const currentPrice = item.price;
 
-                            // Validar temporalidad DIARIA (1d) exigiendo estrictamente longitud >= p3
+                            // Validar temporalidad DIARIA (1d) exigiendo estrictamente longitud >= p3 (EMA 3)
                             const res1d = await fetch(`https://api.binance.com/api/v3/klines?symbol=${item.symbol}&interval=1d&limit=${fetchLimit}`);
                             if (!res1d.ok) continue;
                             const klines1d = await res1d.json();
-                            if (klines1d.length < p3) continue; // Si no tiene el número de velas que exige la EMA 3, se descarta
+                            if (klines1d.length < p3) continue; // Si no tiene el número de velas de la EMA 3, se descarta (adiós ONDO si no cumple)
 
                             const closes1d = klines1d.map(k => parseFloat(k[4]));
                             if (!validateBullishFan(closes1d, p1, p2, p3, currentPrice)) continue;
@@ -531,8 +556,10 @@
                             const closes4h = klines4h.map(k => parseFloat(k[4]));
                             if (!validateBullishFan(closes4h, p1, p2, p3, currentPrice)) continue;
 
-                            // Si pasa ambas validaciones de forma perfecta, entra a la lista de resultados
-                            rawMasterData.push(item);
+                            // Verificación final para garantizar cero duplicados en la lista maestra
+                            if (!rawMasterData.some(existing => existing.symbol === item.symbol)) {
+                                rawMasterData.push(item);
+                            }
                         } catch (err) {
                             console.error(`Error procesando ${item.symbol}:`, err);
                         }
@@ -585,12 +612,12 @@
 
             // ----- RENDERIZADO DE TABLA -----
             function renderTable(results, totalPassed) {
-                countDisplay.textContent = `✅ ${totalPassed} criptos con confluencia y abanico alcista (1d + 4h)`;
+                countDisplay.textContent = `✅ ${totalPassed} criptos con abanico alcista verificado (1d + 4h)`;
 
                 if (totalPassed === 0) {
                     tableContainer.innerHTML = `
                         <div class="empty">
-                            <p style="font-size:1.2rem;">🔎 No se encontraron criptos que cumplan con la configuración actual de EMAs y volumen</p>
+                            <p style="font-size:1.2rem;">🔎 No se encontraron criptos que cumplan con el historial estricto de la EMA 3 y la estructura alcista</p>
                             <p style="color:#848e9c; margin-top:5px;">Prueba ajustando los parámetros o haciendo clic en "Recomendado".</p>
                         </div>
                     `;
