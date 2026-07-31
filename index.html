@@ -145,7 +145,6 @@
     </div>
 
     <script>
-        // ----- LÓGICA DE CONTROL DE MODOS -----
         function toggleMode() {
             const mode = document.getElementById('modeSelect').value;
             const minVolumeInput = document.getElementById('minVolume');
@@ -154,7 +153,6 @@
             const modeStatus = document.getElementById('modeStatus');
 
             if (mode === 'auto') {
-                // Valores estrictos preestablecidos por la estrategia institucional
                 minVolumeInput.value = 500000;
                 minPriceInput.value = 0.01;
                 minTradesInput.value = 1000;
@@ -165,7 +163,6 @@
                 
                 modeStatus.textContent = "Modo: Automático (Blindado)";
             } else {
-                // Permite al usuario configurar libremente
                 minVolumeInput.disabled = false;
                 minPriceInput.disabled = false;
                 minTradesInput.disabled = false;
@@ -174,13 +171,12 @@
             }
         }
 
-        // ----- FUNCIÓN PRINCIPAL DE CONEXIÓN Y FILTRADO -----
         async function fetchAndFilter() {
             const refreshBtn = document.getElementById('refreshBtn');
             const resultBody = document.getElementById('resultBody');
             const countDisplay = document.getElementById('countDisplay');
 
-            // Capturar umbrales según el modo activo (asegurando conversión numérica estricta)
+            // LECTURA DINÁMICA ABSOLUTA: Se acoge estrictamente a los números escritos en los filtros superiores
             const minVolume = parseFloat(document.getElementById('minVolume').value) || 0;
             const minPrice = parseFloat(document.getElementById('minPrice').value) || 0;
             const minTrades = parseInt(document.getElementById('minTrades').value) || 0;
@@ -194,30 +190,24 @@
                 
                 const data = await response.json();
 
-                // Filtrado matemático estricto anti-memecoin (excluye activos fantasmas con baja actividad)
+                // Filtrado matemático estricto basado al 100% en los inputs superiores (auto o manual)
                 const filteredData = data.filter(item => {
                     const volume = parseFloat(item.quoteVolume);
                     const price = parseFloat(item.lastPrice);
-                    const trades = parseInt(item.count) || 0;
+                    const trades = parseInt(item.count) || 0; 
                     const symbol = item.symbol;
 
-                    // 1. Validar fin de pares que no sean USDT
                     if (!symbol.endsWith('USDT')) return false;
 
-                    // 2. Filtro de Volumen Mínimo
+                    // Validación directa contra los campos visuales superiores
                     if (volume < minVolume) return false;
-
-                    // 3. Filtro de Precio Mínimo
                     if (price < minPrice) return false;
-
-                    // 4. Filtro de Transacciones Mínimas (Valla clave anti-memecoin / ej: rechaza los de 74 trades)
                     if (trades < minTrades) return false;
 
                     return true;
                 });
 
-                // Actualizar interfaz visual
-                countDisplay.textContent = `Activos institucionales válidos: ${filteredData.length}`;
+                countDisplay.textContent = `Activos válidos según filtros: ${filteredData.length}`;
                 renderTable(filteredData);
 
             } catch (error) {
@@ -230,12 +220,11 @@
             }
         }
 
-        // ----- RENDERIZADO DE TABLA -----
         function renderTable(items) {
             const resultBody = document.getElementById('resultBody');
             
             if (items.length === 0) {
-                resultBody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: #ffaa00;">Ningún activo cumple con los filtros estrictos actuales.</td></tr>`;
+                resultBody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: #ffaa00;">Ningún activo cumple con los números configurados en los filtros.</td></tr>`;
                 return;
             }
 
