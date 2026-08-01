@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Filtro Binance - Spot y Futuros</title>
+    <title>11 Filtro Binance - Spot y Futuros</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -182,7 +182,15 @@
             evt.currentTarget.classList.add('active');
         }
 
-        // Función exclusiva para la API de Spot (evita cruces)
+        // Función de formateo numérico estricto al estándar XXX.XXX,XX
+        function formatNumber(num, decimals = 2) {
+            if (isNaN(num)) return "0,00";
+            let parts = num.toFixed(decimals).split(".");
+            parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+            return parts.join(",");
+        }
+
+        // Función exclusiva para la API de Spot
         async function loadSpotMarket() {
             const volInput = document.getElementById('spotVol');
             const tradesInput = document.getElementById('spotTrades');
@@ -218,9 +226,9 @@
 
                 let html = '';
                 filtered.forEach(item => {
-                    const price = parseFloat(item.lastPrice).toFixed(4);
-                    const volume = parseFloat(item.quoteVolume).toLocaleString('en-US', {maximumFractionDigits: 0});
-                    const trades = parseInt(item.count).toLocaleString('en-US');
+                    const price = formatNumber(parseFloat(item.lastPrice), 4);
+                    const volume = formatNumber(parseFloat(item.quoteVolume), 2);
+                    const trades = formatNumber(parseFloat(item.count), 0);
 
                     html += `
                         <tr>
@@ -240,7 +248,7 @@
             }
         }
 
-        // Función exclusiva para la API de Futuros (evita cruces)
+        // Función exclusiva para la API de Futuros
         async function loadFuturesMarket() {
             const volInput = document.getElementById('futVol');
             const tradesInput = document.getElementById('futTrades');
@@ -276,9 +284,9 @@
 
                 let html = '';
                 filtered.forEach(item => {
-                    const price = parseFloat(item.lastPrice).toFixed(4);
-                    const volume = parseFloat(item.quoteVolume).toLocaleString('en-US', {maximumFractionDigits: 0});
-                    const trades = parseInt(item.count).toLocaleString('en-US');
+                    const price = formatNumber(parseFloat(item.lastPrice), 4);
+                    const volume = formatNumber(parseFloat(item.quoteVolume), 2);
+                    const trades = formatNumber(parseFloat(item.count), 0);
 
                     html += `
                         <tr>
