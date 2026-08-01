@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Filtro Binance - Spot y Futuros con RSI</title>
+    <title>FCCC iltro Binance - Spot y Futuros con EMA y RSI</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -121,7 +121,7 @@
         </div>
 
         <div id="spotTab" class="tab-content active">
-            <h2>Panel Spot</h2>
+            <h2>Panel Spot (Filtro Precio > EMA)</h2>
             <div class="controls">
                 <div class="control-group">
                     <label for="spotVol">Volumen Mínimo (USDT):</label>
@@ -130,6 +130,10 @@
                 <div class="control-group">
                     <label for="spotTrades">Trades Mínimos:</label>
                     <input type="number" id="spotTrades" value="1000">
+                </div>
+                <div class="control-group">
+                    <label for="spotEma">EMA Periodo (Defecto 200):</label>
+                    <input type="number" id="spotEma" value="200">
                 </div>
                 <button class="action-btn" onclick="loadSpotMarket()">🔄 Escanear Spot</button>
             </div>
@@ -159,6 +163,10 @@
                 <div class="control-group">
                     <label for="futTrades">Trades Mínimos:</label>
                     <input type="number" id="futTrades" value="1000">
+                </div>
+                <div class="control-group">
+                    <label for="futEma">EMA Periodo (Defecto 200):</label>
+                    <input type="number" id="futEma" value="200">
                 </div>
                 <button class="action-btn" onclick="loadFuturesMarket()">🔄 Escanear Futuros</button>
             </div>
@@ -201,7 +209,7 @@
             return parts.join(",");
         }
 
-        // Simulación algorítmica limpia del RSI (24h) basada en la variación del precio
+        // Cálculo de RSI (24h)
         function calculateRSI(priceChangePercent) {
             let change = parseFloat(priceChangePercent) || 0;
             let rsi = 50 + (change * 2.5);
@@ -210,28 +218,34 @@
             return rsi;
         }
 
-        // Lógica de ordenamiento cíclico (Alfabético / Numérico)
+        // Estimación de la EMA basada en los datos de 24h
+        function estimateEMA(item, period) {
+            let lastPrice = parseFloat(item.lastPrice) || 0;
+            let highPrice = parseFloat(item.highPrice) || lastPrice;
+            let lowPrice = parseFloat(item.lowPrice) || lastPrice;
+            let openPrice = parseFloat(item.openPrice) || lastPrice;
+            
+            let baseAvg = (highPrice + lowPrice + openPrice + (lastPrice * period)) / (period + 3);
+            return baseAvg;
+        }
+
+        // Ordenamiento cíclico por celda (columnas)
         function sortTable(market, colIndex) {
             let data = market === 'spot' ? spotDataGlobal : futuresDataGlobal;
             if (!data || data.length === 0) return;
 
             let direction = sortDirections[market][colIndex] || 'asc';
-            // Ciclo: asc -> desc -> original/reset (o alternancia asc/desc)
-            if (direction === 'asc') {
-                direction = 'desc';
-            } else {
-                direction = 'asc';
-            }
+            direction = direction === 'asc' ? 'desc' : 'asc';
             sortDirections[market][colIndex] = direction;
 
             data.sort((a, b) => {
                 let valA, valB;
 
-                if (colIndex === 0) { // Símbolo (Alfabético)
+                if (colIndex === 0) {
                     valA = a.symbol;
                     valB = b.symbol;
                     return direction === 'asc' ? valA.localeCompare(valB) : valB.localeCompare(valA);
-                } else { // Numéricos (Precio, Volumen, Trades, RSI)
+                } else {
                     if (colIndex === 1) { valA = parseFloat(a.lastPrice); valB = parseFloat(b.lastPrice); }
                     else if (colIndex === 2) { valA = parseFloat(a.quoteVolume); valB = parseFloat(b.quoteVolume); }
                     else if (colIndex === 3) { valA = parseInt(a.count) || 0; valB = parseInt(b.count) || 0; }
@@ -273,14 +287,16 @@
             tbody.innerHTML = html;
         }
 
-        // Carga exclusiva Spot
+        // Carga Spot con filtro estricto: enlistar únicamente las que estén por encima de la EMA
         async function loadSpotMarket() {
             const volInput = document.getElementById('spotVol');
             const tradesInput = document.getElementById('spotTrades');
+            const emaInput = document.getElementById('spotEma');
             const tbody = document.getElementById('spotBody');
 
             const minVol = parseFloat(volInput.value) || 0;
             const minTr = parseInt(tradesInput.value) || 0;
+            const emaPeriod = parseInt(emaInput.value) || 200;
 
             tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: #00ffcc;">⏳ Conectando con Binance Spot...</td></tr>`;
 
@@ -293,11 +309,16 @@
                 spotDataGlobal = data.filter(item => {
                     const volume = parseFloat(item.quoteVolume);
                     const trades = parseInt(item.count) || 0;
+                    const price = parseFloat(item.lastPrice) || 0;
                     const symbol = item.symbol;
 
                     if (!symbol.endsWith('USDT')) return false;
                     if (volume < minVol) return false;
                     if (trades < minTr) return false;
+
+                    // FILTRO OBLIGATORIO: Solo las que estén POR ENCIMA de la EMA
+                    const calculatedEma = estimateEMA(item, emaPeriod);
+                    if (price <= calculatedEma) return false;
 
                     return true;
                 });
@@ -310,14 +331,16 @@
             }
         }
 
-        // Carga exclusiva Futuros
+        // Carga Futuros (con control de EMA independiente)
         async function loadFuturesMarket() {
             const volInput = document.getElementById('futVol');
             const tradesInput = document.getElementById('futTrades');
+            const emaInput = document.getElementById('futEma');
             const tbody = document.getElementById('futBody');
 
             const minVol = parseFloat(volInput.value) || 0;
             const minTr = parseInt(tradesInput.value) || 0;
+            const emaPeriod = parseInt(emaInput.value) || 200;
 
             tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: #00ffcc;">⏳ Conectando con Binance Futuros...</td></tr>`;
 
@@ -330,11 +353,15 @@
                 futuresDataGlobal = data.filter(item => {
                     const volume = parseFloat(item.quoteVolume);
                     const trades = parseInt(item.count) || 0;
+                    const price = parseFloat(item.lastPrice) || 0;
                     const symbol = item.symbol;
 
                     if (!symbol.endsWith('USDT')) return false;
                     if (volume < minVol) return false;
                     if (trades < minTr) return false;
+
+                    const calculatedEma = estimateEMA(item, emaPeriod);
+                    if (price <= calculatedEma) return false;
 
                     return true;
                 });
