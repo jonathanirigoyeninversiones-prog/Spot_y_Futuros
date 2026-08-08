@@ -1,388 +1,1969 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ccc Filtro Binance - Tiempo Real (Spot y Futuros)</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            background-color: #121212;
-            color: #e0e0e0;
-            margin: 0;
-            padding: 20px;
-        }
-        h1 {
-            color: #00ffcc;
-            text-align: center;
-        }
-        .container {
-            max-width: 950px;
-            margin: 0 auto;
-            background: #1e1e1e;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.5);
-        }
-        .tabs {
-            display: flex;
-            justify-content: center;
-            margin-bottom: 20px;
-            border-bottom: 2px solid #333;
-        }
-        .tab-btn {
-            background: #2a2a2a;
-            color: #b0b0b0;
-            border: none;
-            padding: 12px 30px;
-            font-size: 16px;
-            font-weight: bold;
-            cursor: pointer;
-            transition: background 0.3s, color 0.3s;
-        }
-        .tab-btn.active {
-            background: #00ffcc;
-            color: #121212;
-        }
-        .tab-content {
-            display: none;
-        }
-        .tab-content.active {
-            display: block;
-        }
-        .controls {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 15px;
-            margin-bottom: 20px;
-        }
-        .control-group {
-            display: flex;
-            flex-direction: column;
-        }
-        label {
-            font-size: 14px;
-            margin-bottom: 5px;
-            color: #b0b0b0;
-        }
-        input {
-            padding: 10px;
-            background: #2a2a2a;
-            border: 1px solid #444;
-            color: #fff;
-            border-radius: 4px;
-        }
-        button.action-btn {
-            background: #00ffcc;
-            color: #121212;
-            border: none;
-            padding: 12px;
-            font-weight: bold;
-            border-radius: 4px;
-            cursor: pointer;
-            grid-column: 1 / -1;
-            transition: background 0.3s;
-        }
-        button.action-btn:hover {
-            background: #00b388;
-        }
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 10px;
-        }
-        th, td {
-            padding: 12px;
-            text-align: left;
-            border-bottom: 1px solid #333;
-        }
-        th {
-            background-color: #252525;
-            color: #00ffcc;
-            cursor: pointer;
-            user-select: none;
-        }
-        th:hover {
-            background-color: #333;
-        }
-        tr:nth-child(even) {
-            background-color: #1a1a1a;
-        }
-        .status-live {
-            color: #00ffcc;
-            font-size: 13px;
-            text-align: center;
-            margin-bottom: 10px;
-            font-weight: bold;
-        }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Binance Multi Temporalidad EMA + RSI</title>
+
+  <style>
+    :root {
+      --bg: #0b1020;
+      --panel: #141b2d;
+      --panel2: #1b2540;
+      --text: #edf2f7;
+      --muted: #9aa8c1;
+      --green: #22c55e;
+      --red: #ef4444;
+      --yellow: #facc15;
+      --blue: #2563eb;
+      --border: #2c3855;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      padding: 24px;
+      background: var(--bg);
+      color: var(--text);
+      font-family: Arial, Helvetica, sans-serif;
+    }
+
+    .container {
+      max-width: 1800px;
+      margin: auto;
+    }
+
+    h1 {
+      margin: 0 0 8px;
+    }
+
+    h2 {
+      margin: 0;
+    }
+
+    .subtitle {
+      color: var(--muted);
+      margin-bottom: 22px;
+      line-height: 1.5;
+    }
+
+    .controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      align-items: end;
+      padding: 16px;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      margin-bottom: 18px;
+    }
+
+    .control-title {
+      width: 100%;
+      color: var(--text);
+      font-size: 16px;
+      font-weight: bold;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 9px;
+      margin-top: 3px;
+    }
+
+    label {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    input,
+    select,
+    button {
+      min-height: 40px;
+      border-radius: 7px;
+      border: 1px solid var(--border);
+      padding: 0 12px;
+      background: var(--panel2);
+      color: var(--text);
+      font-size: 14px;
+    }
+
+    input {
+      width: 160px;
+    }
+
+    select {
+      width: 160px;
+    }
+
+    button {
+      cursor: pointer;
+      font-weight: bold;
+    }
+
+    button:hover {
+      filter: brightness(1.12);
+    }
+
+    button:disabled {
+      opacity: .6;
+      cursor: wait;
+    }
+
+    .primary-button {
+      background: var(--blue);
+      border-color: var(--blue);
+    }
+
+    .save-button {
+      background: #15803d;
+      border-color: #15803d;
+    }
+
+    .reset-button {
+      background: #92400e;
+      border-color: #92400e;
+    }
+
+    .button-group {
+      display: flex;
+      gap: 8px;
+      align-items: end;
+    }
+
+    .button-group button {
+      min-width: 120px;
+    }
+
+    #status {
+      color: var(--muted);
+      margin: 10px 0 18px;
+      min-height: 20px;
+      line-height: 1.5;
+    }
+
+    .summary {
+      display: grid;
+      grid-template-columns: repeat(6, 1fr);
+      gap: 12px;
+      margin-bottom: 18px;
+    }
+
+    .summary-card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 14px;
+    }
+
+    .summary-label {
+      color: var(--muted);
+      font-size: 12px;
+      margin-bottom: 6px;
+    }
+
+    .summary-value {
+      font-size: 22px;
+      font-weight: bold;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 18px;
+    }
+
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+    }
+
+    .card h2 {
+      padding: 15px 17px;
+      font-size: 18px;
+    }
+
+    .above h2 {
+      color: var(--green);
+      border-bottom: 2px solid var(--green);
+    }
+
+    .below h2 {
+      color: var(--red);
+      border-bottom: 2px solid var(--red);
+    }
+
+    .table-wrap {
+      overflow-x: auto;
+      max-height: 720px;
+      overflow-y: auto;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+    }
+
+    th,
+    td {
+      text-align: right;
+      padding: 10px 11px;
+      border-bottom: 1px solid var(--border);
+      white-space: nowrap;
+    }
+
+    th {
+      position: sticky;
+      top: 0;
+      z-index: 1;
+      background: var(--panel2);
+      color: var(--muted);
+      cursor: pointer;
+      user-select: none;
+    }
+
+    th:hover {
+      background: #263555;
+      color: white;
+    }
+
+    th:first-child,
+    td:first-child {
+      text-align: left;
+    }
+
+    .sort-arrow {
+      color: var(--yellow);
+      margin-left: 4px;
+      font-weight: bold;
+    }
+
+    tr:hover td {
+      background: rgba(255, 255, 255, .04);
+    }
+
+    .positive {
+      color: var(--green);
+    }
+
+    .negative {
+      color: var(--red);
+    }
+
+    .rsi-high {
+      color: var(--red);
+      font-weight: bold;
+    }
+
+    .rsi-low {
+      color: var(--green);
+      font-weight: bold;
+    }
+
+    .rsi-neutral {
+      color: var(--yellow);
+    }
+
+    .spread-good {
+      color: var(--green);
+    }
+
+    .volume-good {
+      color: var(--green);
+    }
+
+    .empty {
+      padding: 20px;
+      color: var(--muted);
+      text-align: center;
+    }
+
+    .footer {
+      color: var(--muted);
+      font-size: 12px;
+      margin-top: 18px;
+      line-height: 1.5;
+    }
+
+    @media (max-width: 1500px) {
+      .summary {
+        grid-template-columns: repeat(3, 1fr);
+      }
+    }
+
+    @media (max-width: 1100px) {
+      .grid {
+        grid-template-columns: 1fr;
+      }
+
+      .controls {
+        align-items: stretch;
+      }
+
+      label,
+      input,
+      select,
+      button {
+        width: 100%;
+      }
+
+      .button-group {
+        width: 100%;
+      }
+
+      .button-group button {
+        flex: 1;
+      }
+    }
+
+    @media (max-width: 650px) {
+      body {
+        padding: 12px;
+      }
+
+      .summary {
+        grid-template-columns: 1fr;
+      }
+
+      .button-group {
+        flex-direction: column;
+      }
+
+      .button-group button {
+        width: 100%;
+      }
+    }
+  </style>
 </head>
+
 <body>
+  <main class="container">
+    <h1>Binance Multi Temporalidad</h1>
 
-    <div class="container">
-        <h1>Filtro de Mercado Binance (Tiempo Real)</h1>
-        
-        <div class="tabs">
-            <button class="tab-btn active" onclick="switchTab(event, 'spotTab')">Spot</button>
-            <button class="tab-btn" onclick="switchTab(event, 'futuresTab')">Futuros</button>
-        </div>
-
-        <div id="spotTab" class="tab-content active">
-            <h2>Panel Spot</h2>
-            <div class="controls">
-                <div class="control-group">
-                    <label for="spotVol">Volumen Mínimo (USDT):</label>
-                    <input type="number" id="spotVol" value="500000">
-                </div>
-                <div class="control-group">
-                    <label for="spotTrades">Trades Mínimos:</label>
-                    <input type="number" id="spotTrades" value="1000">
-                </div>
-                <div class="control-group">
-                    <label for="spotEma">EMA Periodo (Defecto 200):</label>
-                    <input type="number" id="spotEma" value="200">
-                </div>
-                <button class="action-btn" onclick="initWebSocket('spot')">🟢 Conectar WebSocket Spot</button>
-            </div>
-            <div id="spotStatus" class="status-live">Estado: Desconectado</div>
-            <table>
-                <thead>
-                    <tr>
-                        <th onclick="sortTable('spot', 0)">Símbolo ↕</th>
-                        <th onclick="sortTable('spot', 1)">Precio (USDT) ↕</th>
-                        <th onclick="sortTable('spot', 2)">Volumen (24h) ↕</th>
-                        <th onclick="sortTable('spot', 3)">Trades ↕</th>
-                        <th onclick="sortTable('spot', 4)">RSI (24h) ↕</th>
-                    </tr>
-                </thead>
-                <tbody id="spotBody">
-                    <tr><td colspan="5" style="text-align: center; color: #777;">Presiona conectar para iniciar tiempo real.</td></tr>
-                </tbody>
-            </table>
-        </div>
-
-        <div id="futuresTab" class="tab-content">
-            <h2>Panel Futuros</h2>
-            <div class="controls">
-                <div class="control-group">
-                    <label for="futVol">Volumen Mínimo (USDT):</label>
-                    <input type="number" id="futVol" value="1000000">
-                </div>
-                <div class="control-group">
-                    <label for="futTrades">Trades Mínimos:</label>
-                    <input type="number" id="futTrades" value="1000">
-                </div>
-                <div class="control-group">
-                    <label for="futEma">EMA Periodo (Defecto 200):</label>
-                    <input type="number" id="futEma" value="200">
-                </div>
-                <button class="action-btn" onclick="initWebSocket('futures')">🟢 Conectar WebSocket Futuros</button>
-            </div>
-            <div id="futStatus" class="status-live">Estado: Desconectado</div>
-            <table>
-                <thead>
-                    <tr>
-                        <th onclick="sortTable('futures', 0)">Símbolo ↕</th>
-                        <th onclick="sortTable('futures', 1)">Precio (USDT) ↕</th>
-                        <th onclick="sortTable('futures', 2)">Volumen (24h) ↕</th>
-                        <th onclick="sortTable('futures', 3)">Trades ↕</th>
-                        <th onclick="sortTable('futures', 4)">RSI (24h) ↕</th>
-                    </tr>
-                </thead>
-                <tbody id="futBody">
-                    <tr><td colspan="5" style="text-align: center; color: #777;">Presiona conectar para iniciar tiempo real.</td></tr>
-                </tbody>
-            </table>
-        </div>
-
+    <div class="subtitle">
+      Se excluyen automáticamente las stablecoins. Primero se filtra el mercado
+      en 1D y después se confirma la posición en 4H. El análisis sólo empieza
+      cuando se pulsa el botón de escaneo.
     </div>
 
-    <script>
-        let spotDataGlobal = [];
-        let futuresDataGlobal = [];
-        let spotWs = null;
-        let futuresWs = null;
-        const sortDirections = { spot: {}, futures: {} };
+    <section class="controls">
+      <div class="control-title">
+        Indicadores
+      </div>
 
-        function switchTab(evt, tabId) {
-            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      <label>
+        EMA
+        <input
+          id="emaPeriod"
+          type="number"
+          min="2"
+          max="1000"
+          step="1"
+          value="100"
+        >
+      </label>
 
-            document.getElementById(tabId).classList.add('active');
-            evt.currentTarget.classList.add('active');
+      <label>
+        RSI
+        <input
+          id="rsiPeriod"
+          type="number"
+          min="2"
+          max="100"
+          step="1"
+          value="14"
+        >
+      </label>
+
+      <label>
+        Pares máximos
+        <select id="maxSymbols">
+          <option value="50">50</option>
+          <option value="100" selected>100</option>
+          <option value="200">200</option>
+          <option value="500">500</option>
+          <option value="9999">Todos</option>
+        </select>
+      </label>
+
+      <div class="control-title">
+        Filtros de liquidez
+      </div>
+
+      <label>
+        Volumen mínimo 24H USDT
+        <input
+          id="minVolume24h"
+          type="number"
+          min="0"
+          step="100000"
+          value="10000000"
+        >
+      </label>
+
+      <label>
+        Promedio mínimo volumen 7D
+        <input
+          id="minAverageVolume7d"
+          type="number"
+          min="0"
+          step="100000"
+          value="5000000"
+        >
+      </label>
+
+      <label>
+        Días líquidos mínimos
+        <input
+          id="minLiquidDays"
+          type="number"
+          min="0"
+          max="7"
+          step="1"
+          value="5"
+        >
+      </label>
+
+      <label>
+        Volumen mínimo día líquido
+        <input
+          id="minLiquidDayVolume"
+          type="number"
+          min="0"
+          step="100000"
+          value="3000000"
+        >
+      </label>
+
+      <label>
+        Spread máximo %
+        <input
+          id="maxSpread"
+          type="number"
+          min="0"
+          step="0.01"
+          value="0.20"
+        >
+      </label>
+
+      <label>
+        Operaciones mínimas 24H
+        <input
+          id="minTrades24h"
+          type="number"
+          min="0"
+          step="100"
+          value="5000"
+        >
+      </label>
+
+      <label>
+        Relación máxima volumen/promedio
+        <input
+          id="maxVolumeRatio"
+          type="number"
+          min="0"
+          step="0.1"
+          value="4"
+        >
+      </label>
+
+      <div class="button-group">
+        <button
+          id="saveSettingsBtn"
+          class="save-button"
+          type="button"
+        >
+          Guardar
+        </button>
+
+        <button
+          id="resetSettingsBtn"
+          class="reset-button"
+          type="button"
+        >
+          Reset
+        </button>
+
+        <button
+          id="scanBtn"
+          class="primary-button"
+          type="button"
+        >
+          Escanear
+        </button>
+      </div>
+    </section>
+
+    <div id="status">
+      Configure los filtros y pulse Escanear.
+    </div>
+
+    <section class="summary">
+      <div class="summary-card">
+        <div class="summary-label">Pares Spot USDT</div>
+        <div class="summary-value" id="totalPairsCount">0</div>
+      </div>
+
+      <div class="summary-card">
+        <div class="summary-label">Pasaron liquidez</div>
+        <div class="summary-value" id="liquidPairsCount">0</div>
+      </div>
+
+      <div class="summary-card">
+        <div class="summary-label">Pasaron filtro 1D</div>
+        <div class="summary-value" id="dailyPassedCount">0</div>
+      </div>
+
+      <div class="summary-card">
+        <div class="summary-label">Sobre EMA 4H</div>
+        <div class="summary-value positive" id="aboveSummaryCount">0</div>
+      </div>
+
+      <div class="summary-card">
+        <div class="summary-label">Bajo EMA 4H</div>
+        <div class="summary-value negative" id="belowSummaryCount">0</div>
+      </div>
+
+      <div class="summary-card">
+        <div class="summary-label">Rechazados</div>
+        <div class="summary-value" id="rejectedCount">0</div>
+      </div>
+    </section>
+
+    <section class="grid">
+      <article class="card above">
+        <h2>
+          Sobre EMA en 4H
+          <span id="aboveCount">(0)</span>
+        </h2>
+
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th data-table="above" data-key="symbol" data-type="text">
+                  Par <span class="sort-arrow"></span>
+                </th>
+
+                <th data-table="above" data-key="dailyDistance" data-type="number">
+                  Dist. 1D <span class="sort-arrow"></span>
+                </th>
+
+                <th data-table="above" data-key="distance4h" data-type="number">
+                  Dist. 4H <span class="sort-arrow"></span>
+                </th>
+
+                <th data-table="above" data-key="dailyPrice" data-type="number">
+                  Precio 1D <span class="sort-arrow"></span>
+                </th>
+
+                <th data-table="above" data-key="dailyEma" data-type="number">
+                  EMA 1D <span class="sort-arrow"></span>
+                </th>
+
+                <th data-table="above" data-key="price4h" data-type="number">
+                  Precio 4H <span class="sort-arrow"></span>
+                </th>
+
+                <th data-table="above" data-key="ema4h" data-type="number">
+                  EMA 4H <span class="sort-arrow"></span>
+                </th>
+
+                <th data-table="above" data-key="rsi4h" data-type="number">
+                  RSI 4H <span class="sort-arrow"></span>
+                </th>
+
+                <th data-table="above" data-key="averageVolume7d" data-type="number">
+                  Vol. prom. 7D <span class="sort-arrow"></span>
+                </th>
+
+                <th data-table="above" data-key="spreadPercent" data-type="number">
+                  Spread <span class="sort-arrow"></span>
+                </th>
+              </tr>
+            </thead>
+
+            <tbody id="aboveBody"></tbody>
+          </table>
+        </div>
+      </article>
+
+      <article class="card below">
+        <h2>
+          Bajo EMA en 4H
+          <span id="belowCount">(0)</span>
+        </h2>
+
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th data-table="below" data-key="symbol" data-type="text">
+                  Par <span class="sort-arrow"></span>
+                </th>
+
+                <th data-table="below" data-key="dailyDistance" data-type="number">
+                  Dist. 1D <span class="sort-arrow"></span>
+                </th>
+
+                <th data-table="below" data-key="distance4h" data-type="number">
+                  Dist. 4H <span class="sort-arrow"></span>
+                </th>
+
+                <th data-table="below" data-key="dailyPrice" data-type="number">
+                  Precio 1D <span class="sort-arrow"></span>
+                </th>
+
+                <th data-table="below" data-key="dailyEma" data-type="number">
+                  EMA 1D <span class="sort-arrow"></span>
+                </th>
+
+                <th data-table="below" data-key="price4h" data-type="number">
+                  Precio 4H <span class="sort-arrow"></span>
+                </th>
+
+                <th data-table="below" data-key="ema4h" data-type="number">
+                  EMA 4H <span class="sort-arrow"></span>
+                </th>
+
+                <th data-table="below" data-key="rsi4h" data-type="number">
+                  RSI 4H <span class="sort-arrow"></span>
+                </th>
+
+                <th data-table="below" data-key="averageVolume7d" data-type="number">
+                  Vol. prom. 7D <span class="sort-arrow"></span>
+                </th>
+
+                <th data-table="below" data-key="spreadPercent" data-type="number">
+                  Spread <span class="sort-arrow"></span>
+                </th>
+              </tr>
+            </thead>
+
+            <tbody id="belowBody"></tbody>
+          </table>
+        </div>
+      </article>
+    </section>
+
+    <div class="footer">
+      Las configuraciones se guardan en este navegador. Reset restaura los
+      valores recomendados. La última vela se excluye porque puede continuar
+      abierta. Binance proporciona los datos públicos mediante exchangeInfo,
+      ticker de 24 horas, bookTicker y klines.
+    </div>
+  </main>
+
+  <script>
+    const API =
+      "https://data-api.binance.vision";
+
+    const SETTINGS_KEY =
+      "binanceMultiTemporalidadSettings";
+
+    const DEFAULT_SETTINGS = {
+      emaPeriod: 100,
+      rsiPeriod: 14,
+      maxSymbols: 100,
+      minVolume24h: 10000000,
+      minAverageVolume7d: 5000000,
+      minLiquidDays: 5,
+      minLiquidDayVolume: 3000000,
+      maxSpread: 0.20,
+      minTrades24h: 5000,
+      maxVolumeRatio: 4
+    };
+
+    const STABLECOINS = new Set([
+      "USDT",
+      "USDC",
+      "BUSD",
+      "FDUSD",
+      "DAI",
+      "TUSD",
+      "USDP",
+      "USDD",
+      "EUR",
+      "TRY",
+      "BRL",
+      "GBP",
+      "AUD",
+      "UAH",
+      "RUB",
+      "BIDR",
+      "IDRT",
+      "NGN",
+      "PLN",
+      "RON",
+      "ARS",
+      "ZAR"
+    ]);
+
+    let aboveData = [];
+    let belowData = [];
+
+    const sortState = {
+      above: {
+        key: null,
+        direction: 1
+      },
+      below: {
+        key: null,
+        direction: 1
+      }
+    };
+
+    const emaPeriodEl =
+      document.getElementById("emaPeriod");
+
+    const rsiPeriodEl =
+      document.getElementById("rsiPeriod");
+
+    const maxSymbolsEl =
+      document.getElementById("maxSymbols");
+
+    const minVolume24hEl =
+      document.getElementById("minVolume24h");
+
+    const minAverageVolume7dEl =
+      document.getElementById("minAverageVolume7d");
+
+    const minLiquidDaysEl =
+      document.getElementById("minLiquidDays");
+
+    const minLiquidDayVolumeEl =
+      document.getElementById("minLiquidDayVolume");
+
+    const maxSpreadEl =
+      document.getElementById("maxSpread");
+
+    const minTrades24hEl =
+      document.getElementById("minTrades24h");
+
+    const maxVolumeRatioEl =
+      document.getElementById("maxVolumeRatio");
+
+    const saveSettingsBtn =
+      document.getElementById("saveSettingsBtn");
+
+    const resetSettingsBtn =
+      document.getElementById("resetSettingsBtn");
+
+    const scanBtn =
+      document.getElementById("scanBtn");
+
+    const statusEl =
+      document.getElementById("status");
+
+    const totalPairsCount =
+      document.getElementById("totalPairsCount");
+
+    const liquidPairsCount =
+      document.getElementById("liquidPairsCount");
+
+    const dailyPassedCount =
+      document.getElementById("dailyPassedCount");
+
+    const aboveSummaryCount =
+      document.getElementById("aboveSummaryCount");
+
+    const belowSummaryCount =
+      document.getElementById("belowSummaryCount");
+
+    const rejectedCount =
+      document.getElementById("rejectedCount");
+
+    const aboveBody =
+      document.getElementById("aboveBody");
+
+    const belowBody =
+      document.getElementById("belowBody");
+
+    const aboveCount =
+      document.getElementById("aboveCount");
+
+    const belowCount =
+      document.getElementById("belowCount");
+
+    function showStatus(message) {
+      statusEl.textContent = message;
+    }
+
+    function formatNumber(value) {
+      if (!Number.isFinite(value)) {
+        return "-";
+      }
+
+      if (Math.abs(value) >= 1000000000) {
+        return `${(value / 1000000000).toFixed(2)}B`;
+      }
+
+      if (Math.abs(value) >= 1000000) {
+        return `${(value / 1000000).toFixed(2)}M`;
+      }
+
+      if (Math.abs(value) >= 1000) {
+        return `${(value / 1000).toFixed(2)}K`;
+      }
+
+      if (Math.abs(value) >= 1) {
+        return value.toLocaleString("en-US", {
+          maximumFractionDigits: 6
+        });
+      }
+
+      return value.toLocaleString("en-US", {
+        maximumSignificantDigits: 8
+      });
+    }
+
+    function calculateEMA(values, period) {
+      if (values.length < period) {
+        return null;
+      }
+
+      const multiplier =
+        2 / (period + 1);
+
+      let ema =
+        values
+          .slice(0, period)
+          .reduce(
+            (sum, value) => sum + value,
+            0
+          ) / period;
+
+      for (
+        let i = period;
+        i < values.length;
+        i++
+      ) {
+        ema =
+          (values[i] - ema) *
+          multiplier + ema;
+      }
+
+      return ema;
+    }
+
+    function calculateRSI(values, period) {
+      if (values.length <= period) {
+        return null;
+      }
+
+      let gains = 0;
+      let losses = 0;
+
+      for (let i = 1; i <= period; i++) {
+        const change =
+          values[i] - values[i - 1];
+
+        if (change >= 0) {
+          gains += change;
+        } else {
+          losses += Math.abs(change);
+        }
+      }
+
+      let averageGain =
+        gains / period;
+
+      let averageLoss =
+        losses / period;
+
+      for (
+        let i = period + 1;
+        i < values.length;
+        i++
+      ) {
+        const change =
+          values[i] - values[i - 1];
+
+        const gain =
+          Math.max(change, 0);
+
+        const loss =
+          Math.max(-change, 0);
+
+        averageGain =
+          ((averageGain * (period - 1)) +
+            gain) / period;
+
+        averageLoss =
+          ((averageLoss * (period - 1)) +
+            loss) / period;
+      }
+
+      if (averageLoss === 0) {
+        return 100;
+      }
+
+      const relativeStrength =
+        averageGain / averageLoss;
+
+      return 100 -
+        (100 / (1 + relativeStrength));
+    }
+
+    function getRsiClass(rsi) {
+      if (rsi >= 70) {
+        return "rsi-high";
+      }
+
+      if (rsi <= 30) {
+        return "rsi-low";
+      }
+
+      return "rsi-neutral";
+    }
+
+    function getSettingsFromForm() {
+      return {
+        emaPeriod: Number(
+          emaPeriodEl.value
+        ),
+
+        rsiPeriod: Number(
+          rsiPeriodEl.value
+        ),
+
+        maxSymbols: Number(
+          maxSymbolsEl.value
+        ),
+
+        minVolume24h: Number(
+          minVolume24hEl.value
+        ),
+
+        minAverageVolume7d: Number(
+          minAverageVolume7dEl.value
+        ),
+
+        minLiquidDays: Number(
+          minLiquidDaysEl.value
+        ),
+
+        minLiquidDayVolume: Number(
+          minLiquidDayVolumeEl.value
+        ),
+
+        maxSpread: Number(
+          maxSpreadEl.value
+        ),
+
+        minTrades24h: Number(
+          minTrades24hEl.value
+        ),
+
+        maxVolumeRatio: Number(
+          maxVolumeRatioEl.value
+        )
+      };
+    }
+
+    function applySettings(settings) {
+      emaPeriodEl.value =
+        settings.emaPeriod;
+
+      rsiPeriodEl.value =
+        settings.rsiPeriod;
+
+      maxSymbolsEl.value =
+        settings.maxSymbols;
+
+      minVolume24hEl.value =
+        settings.minVolume24h;
+
+      minAverageVolume7dEl.value =
+        settings.minAverageVolume7d;
+
+      minLiquidDaysEl.value =
+        settings.minLiquidDays;
+
+      minLiquidDayVolumeEl.value =
+        settings.minLiquidDayVolume;
+
+      maxSpreadEl.value =
+        settings.maxSpread;
+
+      minTrades24hEl.value =
+        settings.minTrades24h;
+
+      maxVolumeRatioEl.value =
+        settings.maxVolumeRatio;
+    }
+
+    function validateSettings(settings) {
+      if (
+        !Number.isInteger(settings.emaPeriod) ||
+        settings.emaPeriod < 2 ||
+        settings.emaPeriod > 1000
+      ) {
+        throw new Error(
+          "La EMA debe estar entre 2 y 1000."
+        );
+      }
+
+      if (
+        !Number.isInteger(settings.rsiPeriod) ||
+        settings.rsiPeriod < 2 ||
+        settings.rsiPeriod > 100
+      ) {
+        throw new Error(
+          "El RSI debe estar entre 2 y 100."
+        );
+      }
+
+      if (
+        !Number.isFinite(settings.minVolume24h) ||
+        settings.minVolume24h < 0
+      ) {
+        throw new Error(
+          "El volumen mínimo 24H no es válido."
+        );
+      }
+
+      if (
+        !Number.isFinite(
+          settings.minAverageVolume7d
+        ) ||
+        settings.minAverageVolume7d < 0
+      ) {
+        throw new Error(
+          "El promedio de volumen 7D no es válido."
+        );
+      }
+
+      if (
+        !Number.isInteger(settings.minLiquidDays) ||
+        settings.minLiquidDays < 0 ||
+        settings.minLiquidDays > 7
+      ) {
+        throw new Error(
+          "Los días líquidos deben estar entre 0 y 7."
+        );
+      }
+
+      if (
+        !Number.isFinite(
+          settings.minLiquidDayVolume
+        ) ||
+        settings.minLiquidDayVolume < 0
+      ) {
+        throw new Error(
+          "El volumen del día líquido no es válido."
+        );
+      }
+
+      if (
+        !Number.isFinite(settings.maxSpread) ||
+        settings.maxSpread < 0
+      ) {
+        throw new Error(
+          "El spread máximo no es válido."
+        );
+      }
+
+      if (
+        !Number.isFinite(settings.minTrades24h) ||
+        settings.minTrades24h < 0
+      ) {
+        throw new Error(
+          "Las operaciones mínimas no son válidas."
+        );
+      }
+
+      if (
+        !Number.isFinite(
+          settings.maxVolumeRatio
+        ) ||
+        settings.maxVolumeRatio <= 0
+      ) {
+        throw new Error(
+          "La relación máxima no es válida."
+        );
+      }
+
+      return true;
+    }
+
+    function saveSettings() {
+      try {
+        const settings =
+          getSettingsFromForm();
+
+        validateSettings(settings);
+
+        localStorage.setItem(
+          SETTINGS_KEY,
+          JSON.stringify(settings)
+        );
+
+        showStatus(
+          "Configuración guardada correctamente."
+        );
+      } catch (error) {
+        showStatus(
+          `Error al guardar: ${error.message}`
+        );
+      }
+    }
+
+    function resetSettings() {
+      applySettings(DEFAULT_SETTINGS);
+
+      localStorage.setItem(
+        SETTINGS_KEY,
+        JSON.stringify(DEFAULT_SETTINGS)
+      );
+
+      showStatus(
+        "Valores predeterminados restaurados."
+      );
+    }
+
+    function loadSettings() {
+      const saved =
+        localStorage.getItem(SETTINGS_KEY);
+
+      if (!saved) {
+        applySettings(DEFAULT_SETTINGS);
+        return;
+      }
+
+      try {
+        const parsed =
+          JSON.parse(saved);
+
+        const settings = {
+          ...DEFAULT_SETTINGS,
+          ...parsed
+        };
+
+        validateSettings(settings);
+        applySettings(settings);
+
+        showStatus(
+          "Configuración guardada cargada."
+        );
+      } catch (error) {
+        applySettings(DEFAULT_SETTINGS);
+
+        showStatus(
+          "Se cargaron los valores predeterminados."
+        );
+      }
+    }
+
+    async function getExchangeInfo() {
+      const response = await fetch(
+        `${API}/api/v3/exchangeInfo`
+      );
+
+      if (!response.ok) {
+        throw new Error(
+          "No fue posible obtener exchangeInfo."
+        );
+      }
+
+      return response.json();
+    }
+
+    async function get24hTickers() {
+      const response = await fetch(
+        `${API}/api/v3/ticker/24hr`
+      );
+
+      if (!response.ok) {
+        throw new Error(
+          "No fue posible obtener los tickers 24H."
+        );
+      }
+
+      return response.json();
+    }
+
+    async function getBookTicker(symbol) {
+      const response = await fetch(
+        `${API}/api/v3/ticker/bookTicker` +
+        `?symbol=${encodeURIComponent(symbol)}`
+      );
+
+      if (!response.ok) {
+        throw new Error(
+          `No fue posible obtener spread de ${symbol}.`
+        );
+      }
+
+      const data =
+        await response.json();
+
+      const bid =
+        Number(data.bidPrice);
+
+      const ask =
+        Number(data.askPrice);
+
+      if (
+        !Number.isFinite(bid) ||
+        !Number.isFinite(ask) ||
+        bid <= 0 ||
+        ask <= 0 ||
+        ask < bid
+      ) {
+        return null;
+      }
+
+      const midpoint =
+        (bid + ask) / 2;
+
+      const spreadPercent =
+        ((ask - bid) / midpoint) * 100;
+
+      return {
+        spreadPercent
+      };
+    }
+
+    async function getDailyVolumeData(
+      symbol,
+      limit = 8
+    ) {
+      const response = await fetch(
+        `${API}/api/v3/klines` +
+        `?symbol=${encodeURIComponent(symbol)}` +
+        `&interval=1d` +
+        `&limit=${limit}`
+      );
+
+      if (!response.ok) {
+        throw new Error(
+          `No fue posible obtener volumen 1D de ${symbol}.`
+        );
+      }
+
+      const rows =
+        await response.json();
+
+      /*
+        Se elimina la vela diaria actual.
+        Las posiciones:
+        5 = volumen base
+        7 = volumen cotizado
+        8 = número de operaciones
+      */
+      const closedRows =
+        rows.slice(0, -1);
+
+      const volumes =
+        closedRows.map(row =>
+          Number(row[7])
+        );
+
+      const liquidDays =
+        volumes.filter(volume =>
+          volume >= currentScanSettings
+            .minLiquidDayVolume
+        ).length;
+
+      const averageVolume7d =
+        volumes.length > 0
+          ? volumes.reduce(
+              (sum, volume) => sum + volume,
+              0
+            ) / volumes.length
+          : 0;
+
+      return {
+        volumes,
+        liquidDays,
+        averageVolume7d
+      };
+    }
+
+    async function getKlines(
+      symbol,
+      interval,
+      limit
+    ) {
+      const response = await fetch(
+        `${API}/api/v3/klines` +
+        `?symbol=${encodeURIComponent(symbol)}` +
+        `&interval=${encodeURIComponent(interval)}` +
+        `&limit=${limit}`
+      );
+
+      if (!response.ok) {
+        throw new Error(
+          `Error consultando ${symbol}.`
+        );
+      }
+
+      const rows =
+        await response.json();
+
+      return rows
+        .slice(0, -1)
+        .map(row => Number(row[4]));
+    }
+
+    function getFilteredSymbols(exchangeInfo) {
+      return exchangeInfo.symbols
+        .filter(symbol =>
+          symbol.status === "TRADING" &&
+          symbol.quoteAsset === "USDT" &&
+          symbol.isSpotTradingAllowed === true &&
+          !STABLECOINS.has(
+            symbol.baseAsset.toUpperCase()
+          )
+        )
+        .map(symbol => symbol.symbol);
+    }
+
+    function sortList(list, tableName) {
+      const state =
+        sortState[tableName];
+
+      if (!state.key) {
+        return [...list];
+      }
+
+      return [...list].sort((a, b) => {
+        let comparison;
+
+        if (state.key === "symbol") {
+          comparison =
+            a.symbol.localeCompare(b.symbol);
+        } else {
+          comparison =
+            a[state.key] - b[state.key];
         }
 
-        // Formato numérico estricto XXX.XXX,XX
-        function formatNumber(num, decimals = 2) {
-            if (isNaN(num)) return "0,00";
-            let parts = num.toFixed(decimals).split(".");
-            parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ".");
-            return parts.join(",");
-        }
+        return comparison * state.direction;
+      });
+    }
 
-        // Cálculo de RSI (24h)
-        function calculateRSI(priceChangePercent) {
-            let change = parseFloat(priceChangePercent) || 0;
-            let rsi = 50 + (change * 2.5);
-            if (rsi > 100) rsi = 100;
-            if (rsi < 0) rsi = 0;
-            return rsi;
-        }
+    function createCell(
+      value,
+      className = ""
+    ) {
+      const cell =
+        document.createElement("td");
 
-        // Estimación rápida de la EMA
-        function estimateEMA(item, period) {
-            let lastPrice = parseFloat(item.lastPrice) || 0;
-            let highPrice = parseFloat(item.highPrice) || lastPrice;
-            let lowPrice = parseFloat(item.lowPrice) || lastPrice;
-            let openPrice = parseFloat(item.openPrice) || lastPrice;
-            
-            return (highPrice + lowPrice + openPrice + (lastPrice * period)) / (period + 3);
-        }
+      cell.textContent =
+        value;
 
-        // Ordenamiento cíclico de celdas
-        function sortTable(market, colIndex) {
-            let data = market === 'spot' ? spotDataGlobal : futuresDataGlobal;
-            if (!data || data.length === 0) return;
+      if (className) {
+        cell.className =
+          className;
+      }
 
-            let direction = sortDirections[market][colIndex] || 'asc';
-            direction = direction === 'asc' ? 'desc' : 'asc';
-            sortDirections[market][colIndex] = direction;
+      return cell;
+    }
 
-            data.sort((a, b) => {
-                let valA, valB;
+    function createRow(item) {
+      const row =
+        document.createElement("tr");
 
-                if (colIndex === 0) {
-                    valA = a.symbol;
-                    valB = b.symbol;
-                    return direction === 'asc' ? valA.localeCompare(valB) : valB.localeCompare(valA);
-                } else {
-                    if (colIndex === 1) { valA = parseFloat(a.lastPrice); valB = parseFloat(b.lastPrice); }
-                    else if (colIndex === 2) { valA = parseFloat(a.quoteVolume); valB = parseFloat(b.quoteVolume); }
-                    else if (colIndex === 3) { valA = parseInt(a.count) || 0; valB = parseInt(b.count) || 0; }
-                    else if (colIndex === 4) { valA = calculateRSI(a.priceChangePercent); valB = calculateRSI(b.priceChangePercent); }
+      const dailyDistanceClass =
+        item.dailyDistance >= 0
+          ? "positive"
+          : "negative";
 
-                    return direction === 'asc' ? valA - valB : valB - valA;
-                }
-            });
+      const distance4hClass =
+        item.distance4h >= 0
+          ? "positive"
+          : "negative";
 
-            renderTable(market, data);
-        }
+      row.appendChild(
+        createCell(item.symbol)
+      );
 
-        function renderTable(market, data) {
-            const tbody = document.getElementById(market === 'spot' ? 'spotBody' : 'futBody');
-            
-            if (data.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: #ffaa00;">Ningún activo cumple con los filtros actuales.</td></tr>`;
-                return;
+      row.appendChild(
+        createCell(
+          `${item.dailyDistance.toFixed(2)}%`,
+          dailyDistanceClass
+        )
+      );
+
+      row.appendChild(
+        createCell(
+          `${item.distance4h.toFixed(2)}%`,
+          distance4hClass
+        )
+      );
+
+      row.appendChild(
+        createCell(
+          formatNumber(item.dailyPrice)
+        )
+      );
+
+      row.appendChild(
+        createCell(
+          formatNumber(item.dailyEma)
+        )
+      );
+
+      row.appendChild(
+        createCell(
+          formatNumber(item.price4h)
+        )
+      );
+
+      row.appendChild(
+        createCell(
+          formatNumber(item.ema4h)
+        )
+      );
+
+      row.appendChild(
+        createCell(
+          item.rsi4h.toFixed(2),
+          getRsiClass(item.rsi4h)
+        )
+      );
+
+      row.appendChild(
+        createCell(
+          formatNumber(item.averageVolume7d),
+          "volume-good"
+        )
+      );
+
+      row.appendChild(
+        createCell(
+          `${item.spreadPercent.toFixed(3)}%`,
+          "spread-good"
+        )
+      );
+
+      return row;
+    }
+
+    function renderTable(tableName) {
+      const isAbove =
+        tableName === "above";
+
+      const list =
+        isAbove ? aboveData : belowData;
+
+      const body =
+        isAbove ? aboveBody : belowBody;
+
+      const count =
+        isAbove ? aboveCount : belowCount;
+
+      const sortedList =
+        sortList(list, tableName);
+
+      body.innerHTML = "";
+
+      count.textContent =
+        `(${sortedList.length})`;
+
+      if (sortedList.length === 0) {
+        const row =
+          document.createElement("tr");
+
+        const cell =
+          document.createElement("td");
+
+        cell.colSpan = 10;
+        cell.className = "empty";
+        cell.textContent =
+          "Sin resultados.";
+
+        row.appendChild(cell);
+        body.appendChild(row);
+        return;
+      }
+
+      sortedList.forEach(item => {
+        body.appendChild(
+          createRow(item)
+        );
+      });
+    }
+
+    function updateSortArrows(tableName) {
+      document
+        .querySelectorAll(
+          `th[data-table="${tableName}"]`
+        )
+        .forEach(th => {
+          const arrow =
+            th.querySelector(".sort-arrow");
+
+          const state =
+            sortState[tableName];
+
+          if (
+            state.key !== th.dataset.key
+          ) {
+            arrow.textContent = "";
+            return;
+          }
+
+          arrow.textContent =
+            state.direction === 1
+              ? "▲"
+              : "▼";
+        });
+    }
+
+    function sortTable(
+      tableName,
+      key,
+      type
+    ) {
+      const state =
+        sortState[tableName];
+
+      if (state.key === key) {
+        state.direction *= -1;
+      } else {
+        state.key = key;
+
+        state.direction =
+          type === "text"
+            ? 1
+            : -1;
+      }
+
+      renderTable(tableName);
+      updateSortArrows(tableName);
+    }
+
+    document
+      .querySelectorAll("th[data-table]")
+      .forEach(th => {
+        th.addEventListener("click", () => {
+          sortTable(
+            th.dataset.table,
+            th.dataset.key,
+            th.dataset.type
+          );
+        });
+      });
+
+    function validateScanSettings() {
+      const settings =
+        getSettingsFromForm();
+
+      validateSettings(settings);
+
+      return settings;
+    }
+
+    let currentScanSettings =
+      { ...DEFAULT_SETTINGS };
+
+    async function scan() {
+      scanBtn.disabled = true;
+
+      aboveData = [];
+      belowData = [];
+
+      renderTable("above");
+      renderTable("below");
+
+      totalPairsCount.textContent = "0";
+      liquidPairsCount.textContent = "0";
+      dailyPassedCount.textContent = "0";
+      aboveSummaryCount.textContent = "0";
+      belowSummaryCount.textContent = "0";
+      rejectedCount.textContent = "0";
+
+      try {
+        currentScanSettings =
+          validateScanSettings();
+
+        const settings =
+          currentScanSettings;
+
+        const candleLimit =
+          Math.min(
+            Math.max(
+              settings.emaPeriod +
+              settings.rsiPeriod +
+              40,
+              150
+            ),
+            1000
+          );
+
+        showStatus(
+          "Consultando información de Binance..."
+        );
+
+        const [
+          exchangeInfo,
+          tickers
+        ] = await Promise.all([
+          getExchangeInfo(),
+          get24hTickers()
+        ]);
+
+        const tickerMap =
+          new Map(
+            tickers.map(ticker => [
+              ticker.symbol,
+              ticker
+            ])
+          );
+
+        const symbols =
+          getFilteredSymbols(exchangeInfo);
+
+        totalPairsCount.textContent =
+          symbols.length;
+
+        const liquidCandidates = [];
+        let rejected = 0;
+
+        /*
+          Filtro de liquidez:
+          1. Volumen 24H.
+          2. Operaciones 24H.
+          3. Spread.
+          4. Promedio de volumen 7D.
+          5. Días líquidos.
+          6. Relación volumen actual/promedio.
+        */
+        for (
+          let i = 0;
+          i < symbols.length;
+          i++
+        ) {
+          const symbol =
+            symbols[i];
+
+          showStatus(
+            `Analizando liquidez de ${symbol} ` +
+            `(${i + 1}/${symbols.length})...`
+          );
+
+          try {
+            const ticker =
+              tickerMap.get(symbol);
+
+            if (!ticker) {
+              rejected++;
+              continue;
             }
 
-            let html = '';
-            data.forEach(item => {
-                const price = formatNumber(parseFloat(item.lastPrice), 4);
-                const volume = formatNumber(parseFloat(item.quoteVolume), 2);
-                const trades = formatNumber(parseFloat(item.count), 0);
-                const rsi = formatNumber(calculateRSI(item.priceChangePercent), 2);
+            const quoteVolume24h =
+              Number(ticker.quoteVolume);
 
-                html += `
-                    <tr>
-                        <td><strong>${item.symbol}</strong></td>
-                        <td>${price}</td>
-                        <td>$${volume}</td>
-                        <td>${trades}</td>
-                        <td>${rsi}</td>
-                    </tr>
-                `;
+            const trades24h =
+              Number(ticker.count);
+
+            if (
+              quoteVolume24h <
+              settings.minVolume24h
+            ) {
+              rejected++;
+              continue;
+            }
+
+            if (
+              trades24h <
+              settings.minTrades24h
+            ) {
+              rejected++;
+              continue;
+            }
+
+            const book =
+              await getBookTicker(symbol);
+
+            if (
+              !book ||
+              book.spreadPercent >
+              settings.maxSpread
+            ) {
+              rejected++;
+              continue;
+            }
+
+            const volumeData =
+              await getDailyVolumeData(
+                symbol,
+                8
+              );
+
+            if (
+              volumeData.averageVolume7d <
+              settings.minAverageVolume7d
+            ) {
+              rejected++;
+              continue;
+            }
+
+            if (
+              volumeData.liquidDays <
+              settings.minLiquidDays
+            ) {
+              rejected++;
+              continue;
+            }
+
+            const volumeRatio =
+              quoteVolume24h /
+              volumeData.averageVolume7d;
+
+            if (
+              volumeRatio >
+              settings.maxVolumeRatio
+            ) {
+              rejected++;
+              continue;
+            }
+
+            liquidCandidates.push({
+              symbol,
+              quoteVolume24h,
+              trades24h,
+              averageVolume7d:
+                volumeData.averageVolume7d,
+              liquidDays:
+                volumeData.liquidDays,
+              spreadPercent:
+                book.spreadPercent,
+              volumeRatio
             });
+          } catch (error) {
+            rejected++;
+            console.warn(error.message);
+          }
 
-            tbody.innerHTML = html;
+          await new Promise(resolve => {
+            setTimeout(resolve, 50);
+          });
         }
 
-        // Conexión WebSockets de Tiempo Real Absoluto (Cero Retraso)
-        function initWebSocket(market) {
-            const isSpot = market === 'spot';
-            const statusEl = document.getElementById(isSpot ? 'spotStatus' : 'futStatus');
-            const tbody = document.getElementById(isSpot ? 'spotBody' : 'futBody');
+        rejectedCount.textContent =
+          rejected;
 
-            const volInput = document.getElementById(isSpot ? 'spotVol' : 'futVol');
-            const tradesInput = document.getElementById(isSpot ? 'spotTrades' : 'futTrades');
-            const emaInput = document.getElementById(isSpot ? 'spotEma' : 'futEma');
+        liquidCandidates.sort((a, b) =>
+          b.quoteVolume24h -
+          a.quoteVolume24h
+        );
 
-            const minVol = parseFloat(volInput.value) || 0;
-            const minTr = parseInt(tradesInput.value) || 0;
-            const emaPeriod = parseInt(emaInput.value) || 200;
+        const selectedCandidates =
+          liquidCandidates.slice(
+            0,
+            settings.maxSymbols
+          );
 
-            if (isSpot && spotWs) spotWs.close();
-            if (!isSpot && futuresWs) futuresWs.close();
+        liquidPairsCount.textContent =
+          selectedCandidates.length;
 
-            statusEl.textContent = "Estado: Conectando a WebSocket en tiempo real...";
-            tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: #00ffcc;">⏳ Estableciendo enlace directo con Binance...</td></tr>`;
+        const dailyPassed = [];
 
-            const wsUrl = isSpot 
-                ? 'wss://stream.binance.com:9443/ws/!ticker@arr' 
-                : 'wss://fstream.binance.com/ws/!ticker@arr';
+        /*
+          Filtro técnico de 1D.
+        */
+        for (
+          let i = 0;
+          i < selectedCandidates.length;
+          i++
+        ) {
+          const candidate =
+            selectedCandidates[i];
 
-            const ws = new WebSocket(wsUrl);
+          showStatus(
+            `Analizando EMA 1D de ${candidate.symbol} ` +
+            `(${i + 1}/${selectedCandidates.length})...`
+          );
 
-            if (isSpot) spotWs = ws; else futuresWs = ws;
+          try {
+            const closes =
+              await getKlines(
+                candidate.symbol,
+                "1d",
+                candleLimit
+              );
 
-            ws.onopen = () => {
-                statusEl.textContent = "Estado: Conectado (En vivo 🟢)";
-            };
+            if (
+              closes.length <
+              settings.emaPeriod
+            ) {
+              continue;
+            }
 
-            ws.onmessage = (event) => {
-                try {
-                    const rawData = JSON.parse(event.data);
-                    // El payload de websockets de ticker array mapea campos normalizados de Binance
-                    const formattedData = rawData.map(item => ({
-                        symbol: item.s,
-                        lastPrice: item.c,
-                        highPrice: item.h,
-                        lowPrice: item.l,
-                        openPrice: item.o,
-                        quoteVolume: item.q,
-                        count: item.n,
-                        priceChangePercent: item.P
-                    }));
+            const dailyEma =
+              calculateEMA(
+                closes,
+                settings.emaPeriod
+              );
 
-                    const filtered = formattedData.filter(item => {
-                        const volume = parseFloat(item.quoteVolume);
-                        const trades = parseInt(item.count) || 0;
-                        const price = parseFloat(item.lastPrice) || 0;
-                        const symbol = item.symbol;
+            const dailyPrice =
+              closes[closes.length - 1];
 
-                        if (!symbol.endsWith('USDT')) return false;
-                        if (volume < minVol) return false;
-                        if (trades < minTr) return false;
+            if (
+              dailyEma === null ||
+              !Number.isFinite(dailyPrice)
+            ) {
+              continue;
+            }
 
-                        // Filtro EMA aplicado estrictamente en Spot o Futuros según corresponda
-                        const calculatedEma = estimateEMA(item, emaPeriod);
-                        if (isSpot && price <= calculatedEma) return false;
+            const dailyDistance =
+              ((dailyPrice - dailyEma) /
+                dailyEma) * 100;
 
-                        return true;
-                    });
+            dailyPassed.push({
+              ...candidate,
+              dailyPrice,
+              dailyEma,
+              dailyDistance
+            });
+          } catch (error) {
+            console.warn(error.message);
+          }
 
-                    if (isSpot) {
-                        spotDataGlobal = filtered;
-                        renderTable('spot', spotDataGlobal);
-                    } else {
-                        futuresDataGlobal = filtered;
-                        renderTable('futures', futuresDataGlobal);
-                    }
-
-                } catch (e) {
-                    console.error("Error procesando mensaje WebSocket", e);
-                }
-            };
-
-            ws.onerror = (error) => {
-                console.error("Error en WebSocket", error);
-                statusEl.textContent = "Estado: Error de conexión";
-            };
-
-            ws.onclose = () => {
-                statusEl.textContent = "Estado: Desconectado";
-            };
+          await new Promise(resolve => {
+            setTimeout(resolve, 70);
+          });
         }
-    </script>
+
+        dailyPassedCount.textContent =
+          dailyPassed.length;
+
+        /*
+          Confirmación técnica de 4H.
+        */
+        for (
+          let i = 0;
+          i < dailyPassed.length;
+          i++
+        ) {
+          const dailyItem =
+            dailyPassed[i];
+
+          showStatus(
+            `Confirmando EMA 4H de ${dailyItem.symbol} ` +
+            `(${i + 1}/${dailyPassed.length})...`
+          );
+
+          try {
+            const closes =
+              await getKlines(
+                dailyItem.symbol,
+                "4h",
+                candleLimit
+              );
+
+            if (
+              closes.length <
+              settings.emaPeriod
+            ) {
+              continue;
+            }
+
+            const ema4h =
+              calculateEMA(
+                closes,
+                settings.emaPeriod
+              );
+
+            const rsi4h =
+              calculateRSI(
+                closes,
+                settings.rsiPeriod
+              );
+
+            const price4h =
+              closes[closes.length - 1];
+
+            if (
+              ema4h === null ||
+              rsi4h === null ||
+              !Number.isFinite(price4h)
+            ) {
+              continue;
+            }
+
+            const distance4h =
+              ((price4h - ema4h) /
+                ema4h) * 100;
+
+            const result = {
+              ...dailyItem,
+              price4h,
+              ema4h,
+              rsi4h,
+              distance4h
+            };
+
+            if (price4h >= ema4h) {
+              aboveData.push(result);
+            } else {
+              belowData.push(result);
+            }
+
+            aboveSummaryCount.textContent =
+              aboveData.length;
+
+            belowSummaryCount.textContent =
+              belowData.length;
+
+            renderTable("above");
+            renderTable("below");
+          } catch (error) {
+            console.warn(error.message);
+          }
+
+          await new Promise(resolve => {
+            setTimeout(resolve, 70);
+          });
+        }
+
+        showStatus(
+          `Proceso terminado. ` +
+          `${selectedCandidates.length} pares líquidos, ` +
+          `${dailyPassed.length} pasaron 1D y ` +
+          `${aboveData.length + belowData.length} ` +
+          `fueron confirmados en 4H.`
+        );
+      } catch (error) {
+        showStatus(
+          `Error: ${error.message}`
+        );
+      } finally {
+        scanBtn.disabled = false;
+      }
+    }
+
+    saveSettingsBtn.addEventListener(
+      "click",
+      saveSettings
+    );
+
+    resetSettingsBtn.addEventListener(
+      "click",
+      resetSettings
+    );
+
+    scanBtn.addEventListener(
+      "click",
+      scan
+    );
+
+    /*
+      Se cargan los valores guardados,
+      pero no se ejecuta el escaneo.
+    */
+    loadSettings();
+  </script>
 </body>
 </html>
